@@ -1,114 +1,119 @@
-import type { CatalogPlugin, ListContext, Folder } from '@data-fair/types-catalogs'
+import type { CatalogPlugin, ListContext } from '@data-fair/types-catalogs'
 import type { MockConfig } from '#types'
 import type { MockCapabilities } from './capabilities.ts'
+import axios from '@data-fair/lib-node/axios.js'
 
-// Generate a random recent ISO date (within the last year)
-const randomRecentIso = () => {
-  const ms = Math.floor(Math.random() * 364 * 24 * 60 * 60 * 1000)
-  return new Date(Date.now() - ms).toISOString()
+type ResourceList = Awaited<ReturnType<CatalogPlugin['list']>>['results']
+
+const baseReqDataset = (input: string = '*', size: number = 50, from: number = 1) => {
+  return {
+    from: (from - 1) * size,
+    size: Math.min(size, 10000),
+    track_total_hits: true,
+    query: {
+      bool: {
+        must: [{
+          bool: {
+            should: [{
+              query_string: {
+                query: input,
+                fields: ['data_and_metadata', 'metadata-fr.title^5', 'metadata-fr.abstract^3', 'content-fr.title^5', 'content-fr.excerpt^3', 'content-fr.plaintext'],
+                analyzer: 'my_search_analyzer',
+                fuzziness: 'AUTO',
+                minimum_should_match: '90%',
+                default_operator: 'AND',
+                boost: 5
+              }
+            }]
+          }
+        }, { term: { is_metadata: true } }],
+        must_not: { term: { 'content-fr.status.keyword': 'draft' } }
+      }
+    },
+    _source: { exclude: ['_dataset'] },
+    collapse: {
+      field: 'uuid.keyword'
+    },
+    post_filter: { terms: { 'type.keyword': ['dataset', 'nonGeographicDataset'] } }
+  }
 }
 
 export const list = async ({ catalogConfig, secrets, params }: ListContext<MockConfig, MockCapabilities>): ReturnType<CatalogPlugin['list']> => {
-  await new Promise(resolve => setTimeout(resolve, catalogConfig.delay)) // Simulate a delay for the mock plugin
+  const url = catalogConfig.url
 
-  const tree = (await import('./resources/resources-mock.ts')).default
+  const listResources = async (params: Record<any, any>) => {
+    const catalogs = (await axios.post(new URL('fr/indexer/elastic/_search/', url).href, baseReqDataset(params.q, params.size, params.page))).data.hits.hits
+    const res = []
 
-  /**
-   * Extracts folders and resources for a given parent/folder ID
-   * @param resources - The resources object containing folders and resources
-   * @param targetId - The parent ID for folders or folder ID for resources (undefined for root level)
-   * @returns Array of folders and resources matching the criteria
-   */
-  const getFoldersAndResources = (targetId: string | undefined) => {
-    const folders = Object.keys(tree.folders).reduce((acc: Folder[], key) => {
-      if (tree.folders[key].parentId !== targetId) return acc // Skip folders that are not under the targetId
-      acc.push({
-        id: key,
-        title: tree.folders[key].title,
-        type: 'folder',
-        updatedAt: randomRecentIso()
+    for (const catalog of catalogs) {
+      const apiList = ['WS', 'WFS', 'AFS', undefined]
+      const formatsList = ['CSV']
+
+      const resource = catalog._source['metadata-fr']
+
+      const sources = resource.link.filter((x: any) => {
+        return x._main && apiList.includes(x.service) && x.formats.filter((y: any) => {
+          return formatsList.includes(y)
+        }).length
       })
-      return acc
-    }, [])
 
-    // In the mock plugin, we assume that resources are always under a folder
-    if (!targetId) return folders
+      // sort source by priority (services / format)
+      sources.sort((x: any, y: any) => {
+        // sort by format
+        // sort format of x
+        const ls: Array<string> = x.formats.filter((z: string) => {
+          return formatsList.includes(z)
+        })
+        ls.sort((a: string, b: string) => {
+          return (formatsList.indexOf(a) === -1 ? ls.length : formatsList.indexOf(a)) - (formatsList.indexOf(b) === -1 ? ls.length : formatsList.indexOf(b))
+        })
+        // sort format of y
+        const ls2: Array<string> = y.formats.filter((z: string) => {
+          return formatsList.includes(z)
+        })
+        ls.sort((a: string, b: string) => {
+          return (formatsList.indexOf(a) === -1 ? ls.length : formatsList.indexOf(a)) - (formatsList.indexOf(b) === -1 ? ls.length : formatsList.indexOf(b))
+        })
 
-    const resources = tree.folders[targetId]?.resourceIds.reduce((acc: Awaited<ReturnType<CatalogPlugin['list']>>['results'], resourceId) => {
-      const resource = tree.resources[resourceId]
-      if (!resource) return acc // Skip if resource not found
+        const idX = formatsList.indexOf(ls[0])
+        const idY = formatsList.indexOf(ls2[0])
+        if (idX !== idY) {
+          return idX - idY
+        } else {
+          // sort by service
+          return apiList.indexOf(x) - apiList.indexOf(y)
+        }
+      })
 
-      acc.push({
-        id: resourceId,
-        title: resource.title,
-        description: resource.description + '\n\n' + secrets.secretField, // Include the secret in the description for demonstration
-        format: resource.format,
-        mimeType: resource.mimeType,
-        origin: resource.origin,
-        size: resource.size,
-        updatedAt: resource.updatedAt,
+      if (sources.length === 0) {
+        continue
+      }
+      const formats: Array<string> = sources[0].formats.filter((z: string) => {
+        return formatsList.includes(z)
+      })
+      formats.sort((a: string, b: string) => {
+        return (formatsList.indexOf(a) === -1 ? formats.length : formatsList.indexOf(a)) - (formatsList.indexOf(b) === -1 ? formats.length : formatsList.indexOf(b))
+      })
+      let title = catalog._source['metadata-fr'].title
+      if (sources[0].service) title += ` - ( ${sources[0].service} )`
+
+      res.push({
+        id: `${catalog._source.uuid}:${sources[0].service ?? ''}:${formats[0].toLowerCase()}`,
+        title,
+        description: sources[0].description,
+        format: formats[0],
+        origin: '',
         type: 'resource'
-      })
-      return acc
-    }, [])
-
-    return [...folders, ...resources]
-  }
-
-  const path: Folder[] = []
-  let res = getFoldersAndResources(params.currentFolderId)
-  // Get total count before search and pagination
-  const totalCount = res.length
-
-  // Apply search filter if provided
-  if (params.q && catalogConfig.searchCapability) {
-    const searchTerm = params.q.toLowerCase()
-    res = res.filter(item =>
-      item.title.toLowerCase().includes(searchTerm) ||
-      ('description' in item && item.description?.toLowerCase().includes(searchTerm))
-    )
-  }
-
-  if (catalogConfig.paginationCapability && params.page && params.size) {
-    // Apply pagination
-    const size = params.size || 20
-    const page = params.page || 0
-    const skip = (page - 1) * size
-    res = res.slice(skip, skip + size)
-  }
-
-  // Get path to current folder if specified
-  if (params.currentFolderId) {
-    // Get current folder
-    const currentFolder = tree.folders[params.currentFolderId]
-    if (!currentFolder) throw new Error(`Folder with ID ${params.currentFolderId} not found`)
-
-    // Get path to current folder (parents folders)
-    let parentId = currentFolder.parentId
-    while (parentId) {
-      const parentFolder = tree.folders[parentId]
-      if (!parentFolder) throw new Error(`Parent folder with ID ${parentId} not found`)
-
-      // Add the parent to the start of the list to avoid reversing the path later
-      path.unshift({
-        id: parentId,
-        title: parentFolder.title,
-        type: 'folder'
-      })
-      parentId = parentFolder.parentId
+      } as ResourceList[number])
     }
-
-    // Add the current folder to the path
-    path.push({
-      id: params.currentFolderId,
-      title: currentFolder.title,
-      type: 'folder'
-    })
+    return res
   }
 
+  // List datasets
+  const resources = await listResources(params)
   return {
-    count: totalCount,
-    results: res,
-    path
+    count: resources.length,
+    results: resources,
+    path: []
   }
 }

@@ -3,9 +3,9 @@ import { importConfigSchema, configSchema, assertConfigValid, type MockConfig } 
 import { type MockCapabilities, capabilities } from './lib/capabilities.ts'
 import i18n from './lib/i18n.ts'
 
-// Since the plugin is very frequently imported, each function is imported on demand,
-// instead of loading the entire plugin.
-// This file should not contain any code, but only constants and dynamic imports of functions.
+// Since the plugin is ve;ry frequently imported, each ;function is imported on demand,
+// instead of loading the entire; plugin.
+// This file should not c;ontain any code, but only ;constants and dynamic imports of functions.
 
 const plugin: CatalogPlugin<MockConfig, MockCapabilities> = {
   async prepare (context) {

@@ -10,17 +10,17 @@ const catalogPlugin: CatalogPlugin = plugin as CatalogPlugin
 
 /** Mock catalog configuration for testing purposes. */
 const catalogConfig = {
-  url: 'http://localhost:3000',
+  url: 'https://data.grandlyon.com',
   delay: 100, // 100ms delay for testing
 }
 
-const secrets = { secretField: 'Hey' }
+const secrets = { secretField: '' }
 const tmpDir = './data/test/downloads'
 
 const getResourceParams = {
   catalogConfig,
   secrets,
-  resourceId: 'category-demographic/resource-population-2023',
+  resourceId: '',
   importConfig: { nbRows: 10 },
   update: { metadata: true, schema: true },
   tmpDir,
@@ -28,36 +28,31 @@ const getResourceParams = {
 }
 
 describe('catalog-mock', () => {
-  it('should list resources and folder from root', async () => {
+  it('should list resources from root', async () => {
     const res = await catalogPlugin.list({
       catalogConfig,
       secrets,
       params: {}
     })
 
-    assert.equal(res.count, 2, 'Expected 2 items in the root folder')
-    assert.equal(res.results.length, 2)
-    assert.equal(res.results[0].type, 'folder', 'Expected folders in the root folder')
+    assert.equal(res.results[0].type, 'resource', 'Expected folders in the root folder')
 
     assert.equal(res.path.length, 0, 'Expected no path for root folder')
   })
 
-  it('should list resources and folder from a folder', async () => {
+  it('should list resources from root with pagination', async () => {
     const res = await catalogPlugin.list({
       catalogConfig,
       secrets,
-      params: { currentFolderId: 'category-geospatial' }
+      params: { size: 20, page: 2 }
     })
 
-    assert.equal(res.count, 2, 'Expected 2 items in category-geospatial folder')
-    assert.equal(res.results.length, 2)
-    assert.equal(res.results[0].type, 'folder', 'Expected folders in category-geospatial folder')
+    assert.ok(res.results.length <= 20, 'Expected pagination')
 
-    assert.equal(res.path.length, 1, 'Expected path to contain the current folder')
-    assert.equal(res.path[0].id, 'category-geospatial')
+    assert.equal(res.results[0].type, 'resource', 'Expected resourecs in the root folder')
+
+    assert.equal(res.path.length, 0, 'Expected no path for root folder')
   })
-
-  it('should list resources and folder with pagination', { skip: 'This catalog does not support pagination' }, async () => {})
 
   describe('should download a resource', async () => {
     // Ensure the temporary directory exists once for all tests
@@ -67,7 +62,19 @@ describe('catalog-mock', () => {
     beforeEach(async () => await fs.emptyDir(tmpDir))
 
     it('with correct params', async () => {
-      const resourceId = 'category-demographic/resource-population-2023'
+      const datasetId = (await catalogPlugin.list({
+        catalogConfig,
+        secrets,
+        params: {}
+      })).results[0].id
+      const resourceId = (await catalogPlugin.list({
+        catalogConfig,
+        secrets,
+        params: { currentFolderId: datasetId }
+      })).results[0].id
+
+      console.log(resourceId)
+
       const resource = await catalogPlugin.getResource({
         ...getResourceParams,
         resourceId
@@ -76,83 +83,12 @@ describe('catalog-mock', () => {
       assert.ok(resource, 'The resource should exist')
 
       assert.equal(resource.id, resourceId, 'Resource ID should match')
-      assert.equal(resource.title, 'Population par commune 2023', 'Resource title should match')
 
       assert.ok(resource.filePath, 'Download URL should not be undefined')
-      assert.ok(resource.filePath.endsWith('dataset-mock.csv'), 'Download URL should contain the downloaded file name')
 
       // Check if the file exists
       const fileExists = await fs.pathExists(resource.filePath)
       assert.ok(fileExists, 'The downloaded file should exist')
     })
-
-    it('should fail for bad importConfig', async () => {
-      const resourceId = 'category-demographic/resource-population-2023'
-
-      await assert.rejects(
-        async () => {
-          await catalogPlugin.getResource({
-            ...getResourceParams,
-            resourceId,
-            importConfig: {
-              nbRows: 100 // This exceeds the maximum of 50
-            }
-          })
-        },
-        'Should throw a validation error for nbRows > 50'
-      )
-    })
-
-    it('should fail for resource not found', async () => {
-      const resourceId = 'non-existent-resource'
-
-      await assert.rejects(
-        async () => {
-          await catalogPlugin.getResource({
-            ...getResourceParams,
-            resourceId
-          })
-        },
-        /not found|does not exist/i,
-        'Should throw an error for non-existent resource'
-      )
-    })
-  })
-
-  it('should publish a dataset', async () => {
-    const dataset = {
-      id: 'test-dataset',
-      title: 'Test Dataset',
-      description: 'This is a test dataset'
-    }
-
-    const result = await catalogPlugin.publishDataset({
-      catalogConfig,
-      secrets,
-      dataset,
-      publication: { action: 'createFolderInRoot' },
-      publicationSite: {
-        title: 'Test Site',
-        url: 'http://example.com',
-        datasetUrlTemplate: 'http://example.com/data-fair/{id}'
-      },
-      log: logFunctions
-    })
-    assert.ok(result, 'The publication should be successful')
-    assert.ok(result.remoteFolder, 'The returned publication should have a remote folder')
-    assert.equal(result.remoteFolder.id, 'folder-test-dataset', 'The returned publication should have a remote folder with an ID')
-  })
-
-  it('should delete a publication', async () => {
-    const resourceId = 'category-demographic/resource-population-2023'
-
-    await catalogPlugin.deletePublication({
-      catalogConfig,
-      secrets,
-      resourceId,
-      log: logFunctions
-    })
-    // Since this is a mock plugin, we cannot verify the deletion, but we can check that no error is thrown
-    assert.ok(true, 'Delete operation should not throw an error')
   })
 })

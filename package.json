@@ -9,7 +9,7 @@
     "check-types": "tsc",
     "lint": "eslint .",
     "prepare": "husky || true",
-    "test-base": "NODE_ENV=test EVENTS_LOG_LEVEL=alert node --disable-warning=ExperimentalWarning --test-force-exit --test-concurrency=1 --test",
+    "test-base": "cross-env NODE_ENV=test EVENTS_LOG_LEVEL=alert node --disable-warning=ExperimentalWarning --test-force-exit --test-concurrency=1 --test",
     "test-only": "npm run test-base -- --test-only test-it/*.ts",
     "test": "npm run test-base test-it/*.ts",
     "quality": "npm run lint && npm run build-types && npm run check-types && npm run test && npm audit --omit=dev --audit-level=critical",
@@ -29,7 +29,10 @@
   ],
   "license": "MIT",
   "dependencies": {
-    "@data-fair/lib-validation": "^1.0.2"
+    "@data-fair/lib-node": "^2.11.0",
+    "@data-fair/lib-validation": "^1.0.2",
+    "cross-env": "^10.1.0",
+    "prom-client": "^15.1.3"
   },
   "devDependencies": {
     "@commitlint/cli": "^19.8.0",
