@@ -1,5 +1,5 @@
 import type { CatalogPlugin, GetResourceContext } from '@data-fair/types-catalogs'
-import type { MockConfig } from '#types'
+import type { OneGeoSuiteConfig } from '#types'
 
 import axios from '@data-fair/lib-node/axios.js'
 
@@ -13,7 +13,7 @@ const baseReqResource = (id: string) => {
   }
 }
 
-export const getResource = async ({ catalogConfig, secrets, resourceId, tmpDir, log }: GetResourceContext<MockConfig>): ReturnType<CatalogPlugin['getResource']> => {
+export const getResource = async ({ catalogConfig, importConfig, resourceId, tmpDir, log }: GetResourceContext<OneGeoSuiteConfig>): ReturnType<CatalogPlugin['getResource']> => {
   const parts = resourceId.split(':')
   if (parts.length !== 3) {
     throw new Error(`Invalid resource ID format: ${resourceId}. Expected: "datasetId:resourceId"`)
@@ -52,17 +52,17 @@ export const getResource = async ({ catalogConfig, secrets, resourceId, tmpDir, 
 
   return {
     id: resourceId,
+    slug: catalog._source.slug,
     title: catalog.title,
-    description: resource.description + '\n\n' + secrets.secretField, // Include the secret in the description for demonstration
+    description: importConfig.useDatasetDescription ? catalog._source['metadata-fr'].abstratc : resource.description,
     filePath,
     format,
     frequency: catalog.updateFrequency,
-    image: '',
     license: {
       href: '/',
       title: catalog.license
     },
     keywords: catalog.keyword,
-    origin: ''
+    updatedAt: catalog._source['metadata-fr'].lastUpdateDate
   }
 }

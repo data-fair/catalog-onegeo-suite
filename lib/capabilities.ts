@@ -14,13 +14,7 @@ export const capabilities = [
   'import',
   'importConfig',
 
-  'createFolderInRoot',
-  'createFolder',
-  'createResource',
-  'replaceFolder',
-  'replaceResource',
-  'requiresPublicationSite'
 ] satisfies Capability[]
 
-export type MockCapabilities = typeof capabilities
+export type OneGeoCapabilities = typeof capabilities
 export default capabilities

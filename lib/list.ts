@@ -1,6 +1,6 @@
 import type { CatalogPlugin, ListContext } from '@data-fair/types-catalogs'
-import type { MockConfig } from '#types'
-import type { MockCapabilities } from './capabilities.ts'
+import type { OneGeoSuiteConfig } from '#types'
+import type { OneGeoCapabilities } from './capabilities.ts'
 import axios from '@data-fair/lib-node/axios.js'
 
 type ResourceList = Awaited<ReturnType<CatalogPlugin['list']>>['results']
@@ -26,7 +26,7 @@ const baseReqDataset = (input: string = '*', size: number = 50, from: number = 1
               }
             }]
           }
-        }, { term: { is_metadata: true } }],
+        }, { term: { is_metadata: true } }, { bool: { should: [{ term: { 'metadata-fr.link.service.keyword': 'WS' } }] } }],
         must_not: { term: { 'content-fr.status.keyword': 'draft' } }
       }
     },
@@ -38,7 +38,7 @@ const baseReqDataset = (input: string = '*', size: number = 50, from: number = 1
   }
 }
 
-export const list = async ({ catalogConfig, secrets, params }: ListContext<MockConfig, MockCapabilities>): ReturnType<CatalogPlugin['list']> => {
+export const list = async ({ catalogConfig, params }: ListContext<OneGeoSuiteConfig, OneGeoCapabilities>): ReturnType<CatalogPlugin['list']> => {
   const url = catalogConfig.url
 
   const listResources = async (params: Record<any, any>) => {
@@ -46,8 +46,11 @@ export const list = async ({ catalogConfig, secrets, params }: ListContext<MockC
     const res = []
 
     for (const catalog of catalogs) {
-      const apiList = ['WS', 'WFS', 'AFS', undefined]
-      const formatsList = ['CSV']
+      const apiList = ['WS', undefined]
+      const formatsList = [
+        'CSV', 'ODS', 'Excel non structuré', 'Microsoft Excel', 'CSV LonLat/XY',
+        'ZIP', 'Shapefile (zip)', 'GeoJSON', 'JSON', 'XML', 'Microsoft Word',
+        'ODT', 'GPX', 'LAS', 'GPKG', 'NeTEx', 'GTFS', 'LYR', 'DBF']
 
       const resource = catalog._source['metadata-fr']
 
@@ -56,7 +59,6 @@ export const list = async ({ catalogConfig, secrets, params }: ListContext<MockC
           return formatsList.includes(y)
         }).length
       })
-
       // sort source by priority (services / format)
       sources.sort((x: any, y: any) => {
         // sort by format

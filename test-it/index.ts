@@ -8,9 +8,8 @@ import { logFunctions } from './test-utils.ts'
 import plugin from '../index.ts'
 const catalogPlugin: CatalogPlugin = plugin as CatalogPlugin
 
-/** Mock catalog configuration for testing purposes. */
 const catalogConfig = {
-  url: 'https://data.grandlyon.com',
+  url: 'https://www.datasud.fr',
   delay: 100, // 100ms delay for testing
 }
 
@@ -27,7 +26,7 @@ const getResourceParams = {
   log: logFunctions
 }
 
-describe('catalog-mock', () => {
+describe('catalog-OneGeoSuite', () => {
   it('should list resources from root', async () => {
     const res = await catalogPlugin.list({
       catalogConfig,
@@ -72,8 +71,6 @@ describe('catalog-mock', () => {
         secrets,
         params: { currentFolderId: datasetId }
       })).results[0].id
-
-      console.log(resourceId)
 
       const resource = await catalogPlugin.getResource({
         ...getResourceParams,
