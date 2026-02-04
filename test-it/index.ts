@@ -3,24 +3,25 @@ import { strict as assert } from 'node:assert'
 import { it, describe, before, beforeEach } from 'node:test'
 import fs from 'fs-extra'
 import { logFunctions } from './test-utils.ts'
+import dotenv from 'dotenv'
 
 // Import plugin and use default type like it's done in Catalogs
 import plugin from '../index.ts'
 const catalogPlugin: CatalogPlugin = plugin as CatalogPlugin
 
+dotenv.config()
+
 const catalogConfig = {
-  url: 'https://www.datasud.fr',
-  delay: 100, // 100ms delay for testing
+  url: process.env.ONEGEO_SUITE_URL,
 }
 
-const secrets = { secretField: '' }
 const tmpDir = './data/test/downloads'
 
 const getResourceParams = {
   catalogConfig,
-  secrets,
+  secrets: {},
   resourceId: '',
-  importConfig: { nbRows: 10 },
+  importConfig: {},
   update: { metadata: true, schema: true },
   tmpDir,
   log: logFunctions
@@ -30,7 +31,7 @@ describe('catalog-OneGeoSuite', () => {
   it('should list resources from root', async () => {
     const res = await catalogPlugin.list({
       catalogConfig,
-      secrets,
+      secrets: {},
       params: {}
     })
 
@@ -42,7 +43,7 @@ describe('catalog-OneGeoSuite', () => {
   it('should list resources from root with pagination', async () => {
     const res = await catalogPlugin.list({
       catalogConfig,
-      secrets,
+      secrets: {},
       params: { size: 20, page: 2 }
     })
 
@@ -63,12 +64,12 @@ describe('catalog-OneGeoSuite', () => {
     it('with correct params', async () => {
       const datasetId = (await catalogPlugin.list({
         catalogConfig,
-        secrets,
+        secrets: {},
         params: {}
       })).results[0].id
       const resourceId = (await catalogPlugin.list({
         catalogConfig,
-        secrets,
+        secrets: {},
         params: { currentFolderId: datasetId }
       })).results[0].id
 
