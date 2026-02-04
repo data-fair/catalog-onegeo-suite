@@ -74,6 +74,20 @@ export const getResource = async ({ catalogConfig, importConfig, resourceId, tmp
   const fs = await import('node:fs')
   const path = await import('path')
 
+  const axiosPortail = axios.create({
+    validateStatus: function (status) {
+      return status >= 200 && status < 500
+    }
+  })
+
+  let portail
+  if ([200].includes((await axiosPortail.get(new URL('explorer/fr', catalogConfig.url).href)).status)) {
+    portail = 'explorer/fr'
+  } else if ([200].includes((await axiosPortail.get(new URL('portail/fr', catalogConfig.url).href)).status)) {
+    portail = 'portail/fr'
+  }
+  const origin = portail ? `${catalogConfig.url}/${portail}/jeux-de-donnees/${catalog._source.slug}/info` : ''
+
   let downloadUrl
   let response
   for (downloadUrl of downloadUrls) {
@@ -88,7 +102,7 @@ export const getResource = async ({ catalogConfig, importConfig, resourceId, tmp
     }
   }
   if (!response) {
-    throw Error('Download failed')
+    throw Error(`Download failed ${origin}`)
   }
 
   const format = getBestFormat(sources[downloadUrls.indexOf(downloadUrl!)].formats)[0]
@@ -113,16 +127,17 @@ export const getResource = async ({ catalogConfig, importConfig, resourceId, tmp
     id: resourceId,
     slug: catalog._source.slug,
     title: catalog._source['metadata-fr'].title,
-    description: importConfig.useDatasetDescription ? catalog._source['metadata-fr'].abstratc : sources[downloadUrls.indexOf(downloadUrl!)].description,
+    description: (importConfig.useDatasetDescription ? catalog._source['metadata-fr'].abstratc : sources[downloadUrls.indexOf(downloadUrl!)].description) ?? undefined,
     filePath,
     format,
-    frequency: catalog._source['metadata-fr'].updateFrequency,
+    frequency: catalog._source['metadata-fr'].updateFrequency ?? '',
     license: {
       href: '',
       title: catalog._source['metadata-fr'].license
     },
     keywords: catalog._source['metadata-fr'].keyword,
-    updatedAt: catalog._source['metadata-fr'].lastUpdateDate,
-    image: catalog._source['metadata-fr'].image.find((x: { name: string, url: string | null }) => { return x.name === 'thumbnail' && x.url })
+    updatedAt: catalog._source['metadata-fr'].lastUpdateDate ?? undefined,
+    image: catalog._source['metadata-fr'].image.find((x: { type: string, url: string | null }) => { return x.type === 'thumbnail' && !!x.url }),
+    origin
   }
 }

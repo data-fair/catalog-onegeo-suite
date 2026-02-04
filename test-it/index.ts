@@ -44,7 +44,7 @@ describe('catalog-OneGeoSuite', () => {
     const res = await catalogPlugin.list({
       catalogConfig,
       secrets: {},
-      params: { size: 20, page: 2, q: '*' }
+      params: { size: 20, page: 1, q: '*' }
     })
 
     assert.ok(res.results.length > 0, 'Expected pagination')
@@ -79,7 +79,7 @@ describe('catalog-OneGeoSuite', () => {
         ...getResourceParams,
         resourceId
       })
-
+      console.log(resource)
       assert.ok(resource, 'The resource should exist')
 
       assert.equal(resource.id, resourceId, 'Resource ID should match')
