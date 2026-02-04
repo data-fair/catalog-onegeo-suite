@@ -44,12 +44,14 @@ describe('catalog-OneGeoSuite', () => {
     const res = await catalogPlugin.list({
       catalogConfig,
       secrets: {},
-      params: { size: 20, page: 2 }
+      params: { size: 20, page: 2, q: '*' }
     })
+
+    assert.ok(res.results.length > 0, 'Expected pagination')
 
     assert.ok(res.results.length <= 20, 'Expected pagination')
 
-    assert.equal(res.results[0].type, 'resource', 'Expected resourecs in the root folder')
+    assert.equal(res.results[0].type, 'resource', 'Expected resources in the root folder')
 
     assert.equal(res.path.length, 0, 'Expected no path for root folder')
   })
@@ -61,7 +63,7 @@ describe('catalog-OneGeoSuite', () => {
     // Clear the temporary directory before each test
     beforeEach(async () => await fs.emptyDir(tmpDir))
 
-    it('with correct params', async () => {
+    await it('with correct params', async () => {
       const datasetId = (await catalogPlugin.list({
         catalogConfig,
         secrets: {},

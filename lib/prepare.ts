@@ -11,8 +11,8 @@ export default async ({ catalogConfig }: PrepareContext<OneGeoSuiteConfig, OneGe
   try {
     await axios.get(`${catalogConfig.url}/fr/dataset`)
   } catch (error) {
-    console.error(`Error connecting to ODS API at ${catalogConfig.url}:`, error)
-    throw new Error(`Unable to connect to ODS API at ${catalogConfig.url}. Please check the URL and your network connection.`)
+    console.error(`Error connecting to OneGeoSuite API at ${catalogConfig.url}:`, error)
+    throw new Error(`Unable to connect to OneGeoSuite API at ${catalogConfig.url}. Please check the URL and your network connection.`)
   }
 
   return {

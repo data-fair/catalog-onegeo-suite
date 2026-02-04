@@ -18,10 +18,10 @@ type link = {
   service?: string
 }
 
-const baseReqDataset = (input: string = '*', size: number = 5000, from: number = 1) => {
+const baseReqDataset = (input: string = '*') => {
   return {
-    from: (from - 1) * size,
-    size: Math.min(size, 10000),
+    from: 0,
+    size: 10000,
     track_total_hits: true,
     query: {
       bool: {
@@ -40,8 +40,7 @@ const baseReqDataset = (input: string = '*', size: number = 5000, from: number =
                 }
               }]
             }
-          },
-          { term: { is_metadata: true } },],
+          }],
         must_not: { term: { 'content-fr.status.keyword': 'draft' } }
       }
     },
@@ -68,11 +67,14 @@ export const list = async ({ catalogConfig, params }: ListContext<OneGeoSuiteCon
   }
 
   const listResources = async (params: Record<any, any>) => {
-    const catalogs = (await axios.post(new URL('fr/indexer/elastic/_search/', url).href, baseReqDataset(params.q, params.size, params.page))).data.hits.hits
+    const catalogs = (await axios.post(new URL('fr/indexer/elastic/_search/', url).href, baseReqDataset(params.q))).data.hits.hits
+
     const res = []
     for (const catalog of catalogs) {
       const resource = catalog._source['metadata-fr']
-      const sources: Array<link> = resource.link.filter((x: link) => { return x._main && apiList.includes(x.service) })
+      const sources: Array<link> = resource.link
+        .filter((x: link) => { return apiList.includes(x.service) })
+        .filter((x: link) => { return x.formats.find((y: string) => { return formatsList.includes(y) }) })
       // sort source by priority (services / format)
       sources.sort((x: link, y: link) => {
         const bestFormatX = getBestFormat(x.formats)
@@ -108,9 +110,12 @@ export const list = async ({ catalogConfig, params }: ListContext<OneGeoSuiteCon
     }
     return res
   }
-
   // List datasets
-  const resources = await listResources(params)
+  let resources = await listResources(params)
+  if (params.page && params.size) {
+    resources = resources.slice((params.page - 1) * params.size, params.page * params.size)
+  }
+
   return {
     count: resources.length,
     results: resources,

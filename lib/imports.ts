@@ -37,9 +37,9 @@ const baseReqResource = (id: string) => {
 export const getResource = async ({ catalogConfig, importConfig, resourceId, tmpDir, log }: GetResourceContext<OneGeoSuiteConfig>): ReturnType<CatalogPlugin['getResource']> => {
   const catalog = (await axios.post(new URL('fr/indexer/elastic/_search/', catalogConfig.url).href, baseReqResource(resourceId))).data.hits.hits[0]
   const sources: Array<link> = catalog._source['metadata-fr'].link
-    .filter((x: link) => { return x._main && apiList.includes(x.service) }).filter((x: link) => {
-      return x.formats
-        .find((y: string) => { return formatsList.includes(y) })
+    .filter((x: link) => { return apiList.includes(x.service) })
+    .filter((x: link) => {
+      return x.formats.find((y: string) => { return formatsList.includes(y) })
     })
 
   sources.sort((x: link, y: link) => {
@@ -64,6 +64,10 @@ export const getResource = async ({ catalogConfig, importConfig, resourceId, tmp
     }
     return ''
   })
+
+  if (downloadUrls.length === 0) {
+    throw Error('Download URL not found')
+  }
 
   await log.step('Downloading the file')
   // Download the resource
@@ -108,16 +112,17 @@ export const getResource = async ({ catalogConfig, importConfig, resourceId, tmp
   return {
     id: resourceId,
     slug: catalog._source.slug,
-    title: catalog.title,
+    title: catalog._source['metadata-fr'].title,
     description: importConfig.useDatasetDescription ? catalog._source['metadata-fr'].abstratc : sources[downloadUrls.indexOf(downloadUrl!)].description,
     filePath,
     format,
-    frequency: catalog.updateFrequency,
+    frequency: catalog._source['metadata-fr'].updateFrequency,
     license: {
-      href: '/',
-      title: catalog.license
+      href: '',
+      title: catalog._source['metadata-fr'].license
     },
-    keywords: catalog.keyword,
-    updatedAt: catalog._source['metadata-fr'].lastUpdateDate
+    keywords: catalog._source['metadata-fr'].keyword,
+    updatedAt: catalog._source['metadata-fr'].lastUpdateDate,
+    image: catalog._source['metadata-fr'].image.find((x: { name: string, url: string | null }) => { return x.name === 'thumbnail' && x.url })
   }
 }
