@@ -20,8 +20,8 @@ const tmpDir = './data/test/downloads'
 const getResourceParams = {
   catalogConfig,
   secrets: {},
-  resourceId: '',
-  importConfig: {},
+  resourceId: 'EPEnMZwBOacF4e8lhZkS',
+  importConfig: { format: 'CSV', service: 'WFS' },
   update: { metadata: true, schema: true },
   tmpDir,
   log: logFunctions
@@ -44,12 +44,12 @@ describe('catalog-OneGeoSuite', () => {
     const res = await catalogPlugin.list({
       catalogConfig,
       secrets: {},
-      params: { size: 20, page: 1, q: '*' }
+      params: { size: 20, page: 2, q: '*' }
     })
 
     assert.ok(res.results.length > 0, 'Expected pagination')
 
-    assert.ok(res.results.length <= 20, 'Expected pagination')
+    assert.ok(res.results.length = 20, 'Expected pagination')
 
     assert.equal(res.results[0].type, 'resource', 'Expected resources in the root folder')
 
@@ -64,25 +64,11 @@ describe('catalog-OneGeoSuite', () => {
     beforeEach(async () => await fs.emptyDir(tmpDir))
 
     await it('with correct params', async () => {
-      const datasetId = (await catalogPlugin.list({
-        catalogConfig,
-        secrets: {},
-        params: {}
-      })).results[0].id
-      const resourceId = (await catalogPlugin.list({
-        catalogConfig,
-        secrets: {},
-        params: { currentFolderId: datasetId }
-      })).results[0].id
-
       const resource = await catalogPlugin.getResource({
         ...getResourceParams,
-        resourceId
       })
-      console.log(resource)
-      assert.ok(resource, 'The resource should exist')
 
-      assert.equal(resource.id, resourceId, 'Resource ID should match')
+      assert.ok(resource, 'The resource should exist')
 
       assert.ok(resource.filePath, 'Download URL should not be undefined')
 

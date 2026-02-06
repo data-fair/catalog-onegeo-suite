@@ -1,75 +1,69 @@
 import type { CatalogPlugin, GetResourceContext } from '@data-fair/types-catalogs'
 import type { OneGeoSuiteConfig } from '#types'
+import { type link } from './list.ts'
 
 import axios from '@data-fair/lib-node/axios.js'
 
-type link = {
-  _main: boolean,
-  name: string,
-  description?: string,
-  formats: Array<string>,
-  service?: string,
-  url?: string
-}
-
-const apiList = ['WS', undefined]
-const formatsList = [
-  'CSV', 'ODS', 'Excel non structuré', 'Microsoft Excel',
-  'ZIP', 'Shapefile (zip)', 'GeoJSON', 'JSON', 'XML']
-
-const getBestFormat = (formats: string[]): string[] => {
-  return [...formats].sort((a, b) =>
-    (formatsList.indexOf(a) === -1 ? formats.length : formatsList.indexOf(a)) -
-    (formatsList.indexOf(b) === -1 ? formats.length : formatsList.indexOf(b))
-  )
-}
-
-const baseReqResource = (id: string) => {
-  return {
-    from: 0,
-    size: 1,
-    _source: ['data-fr', 'is_metadata', 'metadata-fr', 'editorial-metadata', 'uuid', 'fields', 'slug', 'extras'],
-    track_total_hits: true,
-    query: { bool: { must: [{ bool: { should: [{ term: { 'uuid.keyword': id } }] } }, { term: { is_metadata: true } }] } }
-  }
-}
-
 export const getResource = async ({ catalogConfig, importConfig, resourceId, tmpDir, log }: GetResourceContext<OneGeoSuiteConfig>): ReturnType<CatalogPlugin['getResource']> => {
-  const catalog = (await axios.post(new URL('fr/indexer/elastic/_search/', catalogConfig.url).href, baseReqResource(resourceId))).data.hits.hits[0]
-  const sources: Array<link> = catalog._source['metadata-fr'].link
-    .filter((x: link) => { return apiList.includes(x.service) })
-    .filter((x: link) => {
-      return x.formats.find((y: string) => { return formatsList.includes(y) })
-    })
+  const format: string = importConfig.format
+  const service: string = importConfig.service
+  const catalog = (await axios.get(new URL(`fr/indexer/elastic/_search/?q=_id:${resourceId}`, catalogConfig.url).href)).data.hits.hits[0]
 
-  sources.sort((x: link, y: link) => {
-    let bestFormatX = formatsList.indexOf(getBestFormat(x.formats)[0])
-    bestFormatX = bestFormatX === -1 ? formatsList.length : bestFormatX
-
-    let bestFormatY = formatsList.indexOf(getBestFormat(y.formats)[0])
-    bestFormatY = bestFormatY === -1 ? formatsList.length : bestFormatY
-
-    if (bestFormatX !== bestFormatY) {
-      return bestFormatX - bestFormatY
-    }
-
-    return apiList.indexOf(x.service) - apiList.indexOf(y.service)
-  })
-
-  const downloadUrls = sources.map((x: link) => {
-    if (x.service === 'WS') {
-      return `${x.url}/${x.name}/all.${getBestFormat(x.formats)[0].toLowerCase()}`
-    } else if (x.service === undefined) {
-      return `${x.url}`
-    }
-    return ''
-  })
-
-  if (downloadUrls.length === 0) {
-    throw Error('Download URL not found')
+  if (!catalog) {
+    throw Error(`resource ${service} not found for ${resourceId} in ${catalogConfig.url}`)
   }
 
-  await log.step('Downloading the file')
+  // filter links by format and service
+  const source: link = catalog._source['metadata-fr'].link.find((x: link) => {
+    return x.service === service || x.url === service
+  })
+
+  // table of format for make AFS url
+  const afsTable: Record<string, string> = {
+    CSV: 'text/csv',
+    JSON: 'application/json',
+    GeoJSON: 'application/Geo%2Bjson',
+    GML: 'application/gml%2Bxml',
+    KML: 'application/vnd.google-earth.kml%2Bxml',
+  }
+  // table of format for make WFS url
+  const wfsTable: Record<string, string> = {
+    CSV: 'csv',
+    GeoJSON: 'application/json',
+    'Shapefile (zip)': 'SHAPE-ZIP',
+    GML: 'GML3',
+    KML: 'kml',
+  }
+  // table of format
+  const extensionTable: Record<string, string> = {
+    CSV: '.csv',
+    GeoJSON: '.geojson',
+    JSON: '.json',
+    'Shapefile (zip)': '.zip',
+    ZIP: '.zip',
+    GML: '.gml',
+    KML: '.kml',
+    XML: '.xml',
+    ODS: '.ods',
+    'Excel non structuré': '.xlsx',
+    'Microsoft Excel': '.xls',
+  }
+
+  let downloadUrl: string
+  if (source.service === 'WS') {
+    downloadUrl = `${source.url}/${source.name}/all${extensionTable[format]}`
+  } else if (source.service === undefined) {
+    downloadUrl = `${source.url}`
+  } else if (source.service === 'AFS') {
+    downloadUrl = `${source.url}${source.name}/items?&crs=${source.projections![0]}&f=${afsTable[format]}&sortby=gid`
+  } else if (source.service === 'WFS') {
+    downloadUrl = `${source.url}?SERVICE=WFS&VERSION=2.0.0&request=GetFeature&typename=${source.name}&outputFormat=${wfsTable[format]}&startIndex=0&sortby=gid`
+  } else {
+    downloadUrl = `${source.url}`
+  }
+
+  await log.step(`Downloading the file ${downloadUrl}`)
+
   // Download the resource
   const fs = await import('node:fs')
   const path = await import('path')
@@ -88,27 +82,27 @@ export const getResource = async ({ catalogConfig, importConfig, resourceId, tmp
   }
   const origin = portail ? `${catalogConfig.url}/${portail}/jeux-de-donnees/${catalog._source.slug}/info` : ''
 
-  let downloadUrl
   let response
-  for (downloadUrl of downloadUrls) {
-    try {
-      response = await axios.get(downloadUrl, {
-        responseType: 'stream'
-      })
-      await log.info(`Get file with ${downloadUrl} successfully!`)
-      break
-    } catch (e) {
-      await log.warning(`Get file fail with this url: ${downloadUrl}; ${e}`)
+  try {
+    response = await axios.get(downloadUrl, {
+      responseType: 'stream',
+    })
+    if (response.headers['content-type'] === 'text/html') {
+      response = undefined
+      throw Error('return HTML page')
     }
+
+    await log.info(`Get file with ${downloadUrl} successfully! ${response.status}`)
+  } catch (e) {
+    await log.warning(`Get file fail with this url: ${downloadUrl}; ${e}`)
   }
+
   if (!response) {
     throw Error(`Download failed ${origin}`)
   }
 
-  const format = getBestFormat(sources[downloadUrls.indexOf(downloadUrl!)].formats)[0]
-
   // Create a filename
-  const fileName = catalog._source.slug + ''
+  const fileName = catalog._source.slug + extensionTable[format]
   const filePath = path.join(tmpDir, fileName)
   await log.info(`Downloading resource to ${fileName}`)
 
@@ -127,7 +121,7 @@ export const getResource = async ({ catalogConfig, importConfig, resourceId, tmp
     id: resourceId,
     slug: catalog._source.slug,
     title: catalog._source['metadata-fr'].title,
-    description: (importConfig.useDatasetDescription ? catalog._source['metadata-fr'].abstratc : sources[downloadUrls.indexOf(downloadUrl!)].description) ?? undefined,
+    description: source.description ?? catalog._source['metadata-fr'].abstratc,
     filePath,
     format,
     frequency: catalog._source['metadata-fr'].updateFrequency ?? '',

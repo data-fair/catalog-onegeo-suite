@@ -5,46 +5,58 @@ import axios from '@data-fair/lib-node/axios.js'
 
 type ResourceList = Awaited<ReturnType<CatalogPlugin['list']>>['results']
 
-const apiList = ['WS', undefined]
+const apiList: Array<string | undefined> = ['WS', 'AFS', 'WFS', undefined]
 const formatsList = [
   'CSV', 'ODS', 'Excel non structuré', 'Microsoft Excel',
-  'ZIP', 'Shapefile (zip)', 'GeoJSON', 'JSON', 'XML']
+  'ZIP', 'Shapefile (zip)', 'GeoJSON', 'JSON', 'XML', 'GML', 'KML']
 
-type link = {
+export type link = {
   _main: boolean,
   name: string,
   description?: string,
-  formats: Array<string>,
-  service?: string
+  formats: string[],
+  service?: string,
+  url: string,
+  projections?: string[]
 }
 
-const baseReqDataset = (input: string = '*') => {
+const getBestFormat = (formats: string[]) => {
+  return [...formats].sort((a, b) =>
+    (formatsList.indexOf(a) === -1 ? formatsList.length : formatsList.indexOf(a)) -
+    (formatsList.indexOf(b) === -1 ? formatsList.length : formatsList.indexOf(b))
+  )
+}
+const baseReqDataset = (input: string = '*', size: number = 100000, from: number = 1) => {
   return {
-    from: 0,
-    size: 10000,
+    from: (from - 1) * size,
+    size: Math.min(size, 10000),
     track_total_hits: true,
     query: {
       bool: {
-        must: [
-          {
-            bool: {
-              should: [{
-                query_string: {
-                  query: input,
-                  fields: ['data_and_metadata', 'metadata-fr.title^5', 'metadata-fr.abstract^3', 'content-fr.title^5', 'content-fr.excerpt^3', 'content-fr.plaintext'],
-                  analyzer: 'my_search_analyzer',
-                  fuzziness: 'AUTO',
-                  minimum_should_match: '90%',
-                  default_operator: 'AND',
-                  boost: 5
-                }
-              }]
-            }
-          }],
-        must_not: { term: { 'content-fr.status.keyword': 'draft' } }
+        must: [{
+          bool: {
+            should: [{
+              query_string: {
+                query: input,
+                fields: ['data_and_metadata', 'metadata-fr.title^5', 'metadata-fr.abstract^3', 'content-fr.title^5', 'content-fr.excerpt^3', 'content-fr.plaintext'],
+                analyzer: 'my_search_analyzer',
+                fuzziness: 'AUTO',
+                minimum_should_match: '90%',
+                default_operator: 'AND',
+                boost: 5
+              }
+            }]
+          }
+        }, { term: { is_metadata: true } }, {
+          bool: {
+            should: [
+              ...apiList.filter((x: any) => { return x }).map((x: any) => { return { term: { 'metadata-fr.link.service.keyword': x } } }),
+              ...formatsList.filter((x: any) => { return x }).map((x: any) => { return { term: { 'metadata-fr.link.formats.keyword': x } } })],
+          }
+        }],
+        must_not: [{ term: { 'content-fr.status.keyword': 'draft' } }]
       }
     },
-    sort: [{ 'metadata-fr.publicationDate': { order: 'desc', unmapped_type: 'date' } }],
     _source: { exclude: ['_dataset'] },
     collapse: {
       field: 'uuid.keyword'
@@ -55,30 +67,17 @@ const baseReqDataset = (input: string = '*') => {
 
 export const list = async ({ catalogConfig, params }: ListContext<OneGeoSuiteConfig, OneGeoCapabilities>): ReturnType<CatalogPlugin['list']> => {
   const url = catalogConfig.url
-
-  const getBestFormat = (formats: string[]): number => {
-    const sorted = [...formats].sort((a, b) =>
-      (formatsList.indexOf(a) === -1 ? formats.length : formatsList.indexOf(a)) -
-      (formatsList.indexOf(b) === -1 ? formats.length : formatsList.indexOf(b))
-    )
-    const best = sorted[0]
-    const idx = formatsList.indexOf(best)
-    return idx === -1 ? formatsList.length : idx
-  }
-
   const listResources = async (params: Record<any, any>) => {
-    const catalogs = (await axios.post(new URL('fr/indexer/elastic/_search/', url).href, baseReqDataset(params.q))).data.hits.hits
-
+    const catalogs = (await axios.post(new URL('fr/indexer/elastic/_search/', url).href, baseReqDataset(params.q, params.size, params.page))).data.hits.hits
     const res = []
+
     for (const catalog of catalogs) {
-      const resource = catalog._source['metadata-fr']
-      const sources: Array<link> = resource.link
-        .filter((x: link) => { return apiList.includes(x.service) })
-        .filter((x: link) => { return x.formats.find((y: string) => { return formatsList.includes(y) }) })
+      const sources: Array<link> = catalog._source['metadata-fr'].link
+
       // sort source by priority (services / format)
       sources.sort((x: link, y: link) => {
-        const bestFormatX = getBestFormat(x.formats)
-        const bestFormatY = getBestFormat(y.formats)
+        const bestFormatX = formatsList.indexOf(getBestFormat(x.formats)[0]) === -1 ? formatsList.length : formatsList.indexOf(getBestFormat(x.formats)[0])
+        const bestFormatY = formatsList.indexOf(getBestFormat(y.formats)[0]) === -1 ? formatsList.length : formatsList.indexOf(getBestFormat(y.formats)[0])
 
         if (bestFormatX !== bestFormatY) {
           return bestFormatX - bestFormatY
@@ -87,34 +86,26 @@ export const list = async ({ catalogConfig, params }: ListContext<OneGeoSuiteCon
         return apiList.indexOf(x.service) - apiList.indexOf(y.service)
       })
 
-      if (sources.length === 0) continue
-
       const formats: Array<string> = sources[0].formats
       formats.sort((a: string, b: string) => {
         return (formatsList.indexOf(a) === -1 ? formats.length : formatsList.indexOf(a)) - (formatsList.indexOf(b) === -1 ? formats.length : formatsList.indexOf(b))
       })
 
-      if (formats.length === 0) continue
-
       let title = catalog._source['metadata-fr'].title
       if (sources[0].service) title += ` - ( ${sources[0].service} )`
 
       res.push({
-        id: `${catalog._source.uuid}`,
+        id: `${catalog._id}`,
         title,
         description: sources[0].description,
         format: formats[0],
-        origin: '',
         type: 'resource'
       } as ResourceList[number])
     }
     return res
   }
   // List datasets
-  let resources = await listResources(params)
-  if (params.page && params.size) {
-    resources = resources.slice((params.page - 1) * params.size, params.page * params.size)
-  }
+  const resources = await listResources(params)
 
   return {
     count: resources.length,

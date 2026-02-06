@@ -6,25 +6,71 @@
   "title": "ImportConfig",
   "type": "object",
   "additionalProperties": false,
+  "required": [
+    "service",
+    "format"
+  ],
   "properties": {
-    "useDatasetDescription": {
-      "title": "Use remote dataset description",
-      "x-i18n-title": {
-        "fr": "Utiliser la description du jeu de données distant"
+    "service": {
+      "type": "string",
+      "title": "Web Service",
+      "description": "The source of the resource",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "image_url": {
+          "type": "string"
+        }
       },
-      "description": "If enabled, the imported dataset will use the description of the remote dataset instead of the description of the remote distribution.",
-      "x-i18n-description": {
-        "fr": "Si activé, le jeu de données importé utilisera la description du jeu de données distant au lieu de la description de la distribution distante."
-      },
-      "type": "boolean",
-      "default": true,
       "layout": {
-        "comp": "switch",
-        "cols": 12
+        "getItems": {
+          "url": "${context.catalogConfig.url}/fr/indexer/elastic/_search/?q=_id:${context.resourceId}",
+          "itemsResults": "(function() { const links = data.hits.hits[0]._source['metadata-fr'].link; return links.filter(l => l.formats.find(f => ['CSV', 'ODS', 'Excel non structuré', 'Microsoft Excel','ZIP', 'Shapefile (zip)', 'GeoJSON', 'JSON', 'XML', 'GML', 'KML'].includes(f)) || ['WS', 'AFS', 'WFS'].includes(l.service)).map((l, i) =>  [l, i] );  })()",
+          "itemTitle": "item[0].service?? 'Local N°' + (item[1] + 1)",
+          "itemValue": "item[0].service??  item[0].url"
+        }
+      }
+    },
+    "format": {
+      "type": "string",
+      "title": "Format",
+      "description": "the fomat use",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "image_url": {
+          "type": "string"
+        }
+      },
+      "layout": {
+        "getItems": {
+          "url": "${context.catalogConfig.url}/fr/indexer/elastic/_search/?q=_id:${context.resourceId}",
+          "itemsResults": "(function(){return data.hits.hits[0]._source['metadata-fr'].link.find(x => x.service === parent.data.service || x.url === parent.data.service).formats; })()",
+          "itemTitle": "item",
+          "itemValue": "item"
+        }
       }
     }
   },
-  "layout": {
-    "title": null
-  }
+  "layout": [
+    {
+      "children": [
+        "service"
+      ]
+    },
+    {
+      "if": "parent.data.service != null",
+      "children": [
+        "format"
+      ]
+    }
+  ]
 }
