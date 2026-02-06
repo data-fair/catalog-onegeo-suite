@@ -116,6 +116,30 @@ export const getResource = async ({ catalogConfig, importConfig, resourceId, tmp
   })
   await log.info(`Resource ${fileName} downloaded successfully!`)
 
+  const FREQUENCY_VALUES = [
+    '',
+    'triennial',
+    'biennial',
+    'annual',
+    'semiannual',
+    'threeTimesAYear',
+    'quarterly',
+    'bimonthly',
+    'monthly',
+    'semimonthly',
+    'biweekly',
+    'threeTimesAMonth',
+    'weekly',
+    'semiweekly',
+    'threeTimesAWeek',
+    'daily',
+    'continuous',
+    'irregular'
+  ]
+
+  let frequency = catalog._source['metadata-fr'].updateFrequency ?? ''
+  if (!FREQUENCY_VALUES.includes(frequency)) frequency = ''
+
   return {
     id: resourceId,
     slug: catalog._source.slug,
@@ -123,14 +147,14 @@ export const getResource = async ({ catalogConfig, importConfig, resourceId, tmp
     description: source.description ?? catalog._source['metadata-fr'].abstratc,
     filePath,
     format,
-    frequency: catalog._source['metadata-fr'].updateFrequency ?? '',
+    frequency,
     license: {
       href: '',
       title: catalog._source['metadata-fr'].license
     },
     keywords: catalog._source['metadata-fr'].keyword,
     updatedAt: catalog._source['metadata-fr'].lastUpdateDate ?? undefined,
-    image: catalog._source['metadata-fr'].image.find((x: { type: string, url: string | null }) => { return x.type === 'thumbnail' && !!x.url }),
+    image: catalog._source['metadata-fr'].image.find((x: { type: string, url: string | null }) => { return x.type === 'thumbnail' && !!x.url }).url ?? null,
     origin
   }
 }

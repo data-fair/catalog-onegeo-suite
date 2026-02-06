@@ -14,7 +14,7 @@
     "service": {
       "type": "string",
       "title": "Web Service",
-      "description": "The source of the resource",
+      "description": "The source of the file",
       "properties": {
         "id": {
           "type": "string"
@@ -27,8 +27,9 @@
         }
       },
       "layout": {
+        "cols": 6,
         "getItems": {
-          "url": "${context.catalogConfig.url}/fr/indexer/elastic/_search/?q=_id:${context.resourceId}",
+          "url": "${context.catalogConfig}/fr/indexer/elastic/_search/?q=_id:${context.resourceId}",
           "itemsResults": "(function() { const links = data.hits.hits[0]._source['metadata-fr'].link; return links.filter(l => l.formats.find(f => ['CSV', 'ODS', 'Excel non structuré', 'Microsoft Excel','ZIP', 'Shapefile (zip)', 'GeoJSON', 'JSON', 'XML', 'GML', 'KML'].includes(f)) || ['WS', 'AFS', 'WFS'].includes(l.service)).map((l, i) =>  [l, i] );  })()",
           "itemTitle": "item[0].service?? 'Local N°' + (item[1] + 1)",
           "itemValue": "item[0].service??  item[0].url"
@@ -38,7 +39,6 @@
     "format": {
       "type": "string",
       "title": "Format",
-      "description": "the fomat use",
       "properties": {
         "id": {
           "type": "string"
@@ -51,26 +51,16 @@
         }
       },
       "layout": {
+        "if": "parent.data.service != null",
+        "cols": 6,
         "getItems": {
-          "url": "${context.catalogConfig.url}/fr/indexer/elastic/_search/?q=_id:${context.resourceId}",
-          "itemsResults": "(function(){return data.hits.hits[0]._source['metadata-fr'].link.find(x => x.service === parent.data.service || x.url === parent.data.service).formats; })()",
-          "itemTitle": "item",
-          "itemValue": "item"
+          "url": "${context.catalogConfig}/fr/indexer/elastic/_search/?q=${parent.data.service}&q=_id:${context.resourceId}",
+          "itemsResults": "(function(){return data.hits.hits[0]._source['metadata-fr'].link.find(x => x.service === parent.data.service || x.url === parent.data.service).formats; })()"
         }
       }
     }
   },
-  "layout": [
-    {
-      "children": [
-        "service"
-      ]
-    },
-    {
-      "if": "parent.data.service != null",
-      "children": [
-        "format"
-      ]
-    }
-  ]
+  "layout": {
+    "title": null
+  }
 }

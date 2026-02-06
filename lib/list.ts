@@ -16,7 +16,7 @@ const getBestFormat = (formats: string[]) => {
     (formatsList.indexOf(b) === -1 ? formatsList.length : formatsList.indexOf(b))
   )
 }
-const baseReqDataset = (input: string = '*', size: number = 100000, from: number = 1) => {
+const baseReqDataset = (input: string = '*', size: number = 50, from: number = 1) => {
   return {
     from: (from - 1) * size,
     size: Math.min(size, 10000),
@@ -58,7 +58,9 @@ const baseReqDataset = (input: string = '*', size: number = 100000, from: number
 export const list = async ({ catalogConfig, params }: ListContext<OneGeoSuiteConfig, OneGeoCapabilities>): ReturnType<CatalogPlugin['list']> => {
   const url = catalogConfig.url
   const listResources = async (params: Record<any, any>) => {
-    const catalogs = (await axios.post(new URL('fr/indexer/elastic/_search/', url).href, baseReqDataset(params.q, params.size, params.page))).data.hits.hits
+    let catalogs = (await axios.post(new URL('fr/indexer/elastic/_search/', url).href, baseReqDataset(params.q, params.size, params.page))).data
+    const count = catalogs.hits.total.value
+    catalogs = catalogs.hits.hits
     const res = []
 
     for (const catalog of catalogs) {
@@ -81,24 +83,21 @@ export const list = async ({ catalogConfig, params }: ListContext<OneGeoSuiteCon
         return (formatsList.indexOf(a) === -1 ? formats.length : formatsList.indexOf(a)) - (formatsList.indexOf(b) === -1 ? formats.length : formatsList.indexOf(b))
       })
 
-      let title = catalog._source['metadata-fr'].title
-      if (sources[0].service) title += ` - ( ${sources[0].service} )`
-
       res.push({
         id: `${catalog._id}`,
-        title,
+        title: catalog._source['metadata-fr'].title,
         description: sources[0].description,
         format: formats[0],
         type: 'resource'
       } as ResourceList[number])
     }
-    return res
+    return [res, count]
   }
   // List datasets
-  const resources = await listResources(params)
+  const [resources, count] = await listResources(params)
 
   return {
-    count: resources.length,
+    count,
     results: resources,
     path: []
   }
