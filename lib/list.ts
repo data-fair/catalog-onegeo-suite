@@ -1,5 +1,5 @@
 import type { CatalogPlugin, ListContext } from '@data-fair/types-catalogs'
-import type { OneGeoSuiteConfig } from '#types'
+import type { OneGeoSuiteConfig, Link } from '#types'
 import type { OneGeoCapabilities } from './capabilities.ts'
 import axios from '@data-fair/lib-node/axios.js'
 
@@ -9,16 +9,6 @@ const apiList: Array<string | undefined> = ['WS', 'AFS', 'WFS', undefined]
 const formatsList = [
   'CSV', 'ODS', 'Excel non structuré', 'Microsoft Excel',
   'ZIP', 'Shapefile (zip)', 'GeoJSON', 'JSON', 'XML', 'GML', 'KML']
-
-export type link = {
-  _main: boolean,
-  name: string,
-  description?: string,
-  formats: string[],
-  service?: string,
-  url: string,
-  projections?: string[]
-}
 
 const getBestFormat = (formats: string[]) => {
   return [...formats].sort((a, b) =>
@@ -72,10 +62,10 @@ export const list = async ({ catalogConfig, params }: ListContext<OneGeoSuiteCon
     const res = []
 
     for (const catalog of catalogs) {
-      const sources: Array<link> = catalog._source['metadata-fr'].link
+      const sources: Array<Link> = catalog._source['metadata-fr'].link
 
       // sort source by priority (services / format)
-      sources.sort((x: link, y: link) => {
+      sources.sort((x: Link, y: Link) => {
         const bestFormatX = formatsList.indexOf(getBestFormat(x.formats)[0]) === -1 ? formatsList.length : formatsList.indexOf(getBestFormat(x.formats)[0])
         const bestFormatY = formatsList.indexOf(getBestFormat(y.formats)[0]) === -1 ? formatsList.length : formatsList.indexOf(getBestFormat(y.formats)[0])
 

@@ -1,6 +1,5 @@
 import type { CatalogPlugin, GetResourceContext } from '@data-fair/types-catalogs'
-import type { OneGeoSuiteConfig } from '#types'
-import { type link } from './list.ts'
+import type { OneGeoSuiteConfig, Link } from '#types'
 
 import axios from '@data-fair/lib-node/axios.js'
 
@@ -14,7 +13,7 @@ export const getResource = async ({ catalogConfig, importConfig, resourceId, tmp
   }
 
   // filter links by format and service
-  const source: link = catalog._source['metadata-fr'].link.find((x: link) => {
+  const source: Link = catalog._source['metadata-fr'].link.find((x: Link) => {
     return x.service === service || x.url === service
   })
 

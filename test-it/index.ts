@@ -3,17 +3,15 @@ import { strict as assert } from 'node:assert'
 import { it, describe, before, beforeEach } from 'node:test'
 import fs from 'fs-extra'
 import { logFunctions } from './test-utils.ts'
-import dotenv from 'dotenv'
 
 // Import plugin and use default type like it's done in Catalogs
 import plugin from '../index.ts'
 const catalogPlugin: CatalogPlugin = plugin as CatalogPlugin
 
-dotenv.config()
+// List of all sites : https://www.onegeosuite.fr/docs/sites_onegeosuite
 
-const catalogConfig = {
-  url: process.env.ONEGEO_SUITE_URL,
-}
+const catalogConfig = { url: 'https://demo.onegeosuite.fr' }
+// const catalogConfig = { url: 'https://www.datasud.fr' }
 
 const tmpDir = './data/test/downloads'
 
