@@ -31,7 +31,7 @@ const getBestFormat = (formats: string[]) => {
     (formatsList.indexOf(b) === -1 ? formatsList.length : formatsList.indexOf(b))
   )
 }
-const baseReqDataset = (input: string = '*', size: number = 50, from: number = 1) => {
+const baseReqDataset = (input: string = '*', size: number = 100, from: number = 1) => {
   return {
     from: (from - 1) * size,
     size: Math.min(size, 10000),
@@ -70,12 +70,64 @@ const baseReqDataset = (input: string = '*', size: number = 50, from: number = 1
   }
 }
 
+const countReq = (input: string = '*') => {
+  return {
+    size: 0,
+    track_total_hits:
+    false,
+    query:
+    {
+      bool: {
+        must: [{
+          bool: {
+            should: [{
+              query_string: {
+                query: input || '*',
+                fields: ['data_and_metadata', 'metadata-fr.title^5', 'metadata-fr.abstract^3', 'content-fr.title^5', 'content-fr.excerpt^3', 'content-fr.plaintext'],
+                analyzer: 'my_search_analyzer',
+                fuzziness: 'AUTO',
+                minimum_should_match: '90%',
+                default_operator: 'AND',
+                boost: 5
+              }
+            }]
+          }
+        }, { term: { is_metadata: true } }, {
+          bool: {
+            should: [
+              ...apiList.filter((x: any) => x).map((x: any) => ({ term: { 'metadata-fr.link.service.keyword': x } })),
+              ...formatsList.filter((x: any) => x).map((x: any) => ({ term: { 'metadata-fr.link.formats.keyword': x } }))
+            ],
+          }
+        }],
+        must_not:
+        [{ term: { 'content-fr.status.keyword': 'draft' } }],
+        filter:
+        {
+          terms: {
+            'type.keyword':
+            ['dataset', 'nonGeographicDataset']
+          }
+        }
+      }
+    },
+    aggs: {
+      unique_datasets: {
+        cardinality: {
+          field: 'uuid.keyword',
+          precision_threshold:
+          40000
+        }
+      }
+    }
+  }
+}
+
 export const list = async ({ catalogConfig, params }: ListContext<OneGeoSuiteConfig, OneGeoCapabilities>): ReturnType<CatalogPlugin['list']> => {
   const url = catalogConfig.url
   const listResources = async (params: Record<any, any>) => {
-    let catalogs = (await axios.post(new URL('fr/indexer/elastic/_search/', url).href, baseReqDataset(params.q ? '*' : params.q, params.size, params.page))).data
-    const count = catalogs.hits.total.value
-    catalogs = catalogs.hits.hits
+    const catalogs = (await axios.post(new URL('fr/indexer/elastic/_search/', url).href, baseReqDataset(params.q || '*', params.size, params.page))).data.hits.hits
+    const count = (await axios.post(new URL('fr/indexer/elastic/_search/', 'https://www.datasud.fr').href, countReq(params.q))).data.aggregations.unique_datasets.value
     const res = []
 
     for (const catalog of catalogs) {
@@ -115,7 +167,6 @@ export const list = async ({ catalogConfig, params }: ListContext<OneGeoSuiteCon
   }
   // List datasets
   const [resources, count] = await listResources(params)
-
   return {
     count,
     results: resources,
