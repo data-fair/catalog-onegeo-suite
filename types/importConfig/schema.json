@@ -6,10 +6,7 @@
   "title": "ImportConfig",
   "type": "object",
   "additionalProperties": false,
-  "required": [
-    "service",
-    "format"
-  ],
+  "required": [],
   "properties": {
     "service": {
       "type": "string",

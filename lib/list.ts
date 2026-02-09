@@ -5,10 +5,9 @@ import axios from '@data-fair/lib-node/axios.js'
 
 type ResourceList = Awaited<ReturnType<CatalogPlugin['list']>>['results']
 
-const apiList: Array<string | undefined> = ['WS', 'AFS', 'WFS', undefined]
-const formatsList = [
-  'CSV', 'ODS', 'Excel non structuré', 'Microsoft Excel',
-  'ZIP', 'Shapefile (zip)', 'SHAPE-ZIP', 'GeoJSON', 'JSON', 'XML', 'GML', 'KML']
+export const apiList: Array<string | undefined> = ['WS', 'WFS', undefined]
+export const formatsList = [
+  'CSV', 'Excel non structuré', 'Microsoft Excel', 'Shapefile (zip)', 'SHAPE-ZIP', 'GeoJSON', 'JSON', 'KML']
 
 const extensionTable: Record<string, string> = {
   CSV: '.csv',
@@ -16,19 +15,15 @@ const extensionTable: Record<string, string> = {
   JSON: '.json',
   'Shapefile (zip)': '.zip',
   'SHAPE-ZIP': '.zip',
-  ZIP: '.zip',
-  GML: '.gml',
   KML: '.kml',
-  XML: '.xml',
-  ODS: '.ods',
   'Excel non structuré': '.xlsx',
   'Microsoft Excel': '.xls',
 }
 
-const getBestFormat = (formats: string[]) => {
+export const sortList = (formats: any[], reference: any[]) => {
   return [...formats].sort((a, b) =>
-    (formatsList.indexOf(a) === -1 ? formatsList.length : formatsList.indexOf(a)) -
-    (formatsList.indexOf(b) === -1 ? formatsList.length : formatsList.indexOf(b))
+    (reference.indexOf(a) === -1 ? reference.length : reference.indexOf(a)) -
+    (reference.indexOf(b) === -1 ? reference.length : reference.indexOf(b))
   )
 }
 const baseReqDataset = (input: string = '*', size: number = 100, from: number = 1) => {
@@ -127,7 +122,7 @@ export const list = async ({ catalogConfig, params }: ListContext<OneGeoSuiteCon
   const url = catalogConfig.url
   const listResources = async (params: Record<any, any>) => {
     const catalogs = (await axios.post(new URL('fr/indexer/elastic/_search/', url).href, baseReqDataset(params.q || '*', params.size, params.page))).data.hits.hits
-    const count = (await axios.post(new URL('fr/indexer/elastic/_search/', 'https://www.datasud.fr').href, countReq(params.q))).data.aggregations.unique_datasets.value
+    const count = (await axios.post(new URL('fr/indexer/elastic/_search/', url).href, countReq(params.q))).data.aggregations.unique_datasets.value
     const res = []
 
     for (const catalog of catalogs) {
@@ -135,8 +130,8 @@ export const list = async ({ catalogConfig, params }: ListContext<OneGeoSuiteCon
 
       // sort source by priority (services / format)
       sources.sort((x: Link, y: Link) => {
-        const bestFormatX = formatsList.indexOf(getBestFormat(x.formats)[0]) === -1 ? formatsList.length : formatsList.indexOf(getBestFormat(x.formats)[0])
-        const bestFormatY = formatsList.indexOf(getBestFormat(y.formats)[0]) === -1 ? formatsList.length : formatsList.indexOf(getBestFormat(y.formats)[0])
+        const bestFormatX = formatsList.indexOf(sortList(x.formats, formatsList)[0]) === -1 ? formatsList.length : formatsList.indexOf(sortList(x.formats, formatsList)[0])
+        const bestFormatY = formatsList.indexOf(sortList(y.formats, formatsList)[0]) === -1 ? formatsList.length : formatsList.indexOf(sortList(y.formats, formatsList)[0])
 
         if (bestFormatX !== bestFormatY) {
           return bestFormatX - bestFormatY

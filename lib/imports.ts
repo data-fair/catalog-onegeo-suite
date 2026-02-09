@@ -1,12 +1,20 @@
 import type { CatalogPlugin, GetResourceContext } from '@data-fair/types-catalogs'
 import type { OneGeoSuiteConfig, Link } from '#types'
+import { apiList, formatsList, sortList } from './list.ts'
 
 import axios from '@data-fair/lib-node/axios.js'
 
 export const getResource = async ({ catalogConfig, importConfig, resourceId, tmpDir, log }: GetResourceContext<OneGeoSuiteConfig>): ReturnType<CatalogPlugin['getResource']> => {
-  const format: string = importConfig.format
-  const service: string = importConfig.service
+  let format: string = importConfig.format
+  let service: string = importConfig.service
   const catalog = (await axios.get(new URL(`fr/indexer/elastic/_search/?q=_id:${resourceId}`, catalogConfig.url).href)).data.hits.hits[0]
+  if (!format) {
+    if (!service) {
+      const links = catalog._source['metadata-fr'].link.filter((x: any) => { return apiList.includes(x.service) && x.formats.find((y: string) => { return formatsList.includes(y) }) })
+      service = sortList(links.map((x: Link) => x.service), apiList)[0]
+    }
+    format = sortList(catalog._source['metadata-fr'].link.find((x: Link) => { return x.service === service && x.formats.find((y: string) => { return formatsList.includes(y) }) }).formats, formatsList)[0]
+  }
 
   if (!catalog) {
     throw Error(`resource ${service} not found for ${resourceId} in ${catalogConfig.url}`)
@@ -17,20 +25,13 @@ export const getResource = async ({ catalogConfig, importConfig, resourceId, tmp
     return x.service === service || x.url === service
   })
 
-  // table of format for make AFS url
-  const afsTable: Record<string, string> = {
-    CSV: 'text/csv',
-    JSON: 'application/json',
-    GeoJSON: 'application/Geo%2Bjson',
-    GML: 'application/gml%2Bxml',
-    KML: 'application/vnd.google-earth.kml%2Bxml',
-  }
   // table of format for make WFS url
   const wfsTable: Record<string, string> = {
     CSV: 'csv',
+    JSON: 'application/json',
     GeoJSON: 'application/json',
     'Shapefile (zip)': 'SHAPE-ZIP',
-    GML: 'GML3',
+    'SHAPE-ZIP': 'SHAPE-ZIP',
     KML: 'kml',
   }
   // table of format
@@ -39,11 +40,8 @@ export const getResource = async ({ catalogConfig, importConfig, resourceId, tmp
     GeoJSON: '.geojson',
     JSON: '.json',
     'Shapefile (zip)': '.zip',
-    ZIP: '.zip',
-    GML: '.gml',
+    'SHAPE-ZIP': '.zip',
     KML: '.kml',
-    XML: '.xml',
-    ODS: '.ods',
     'Excel non structuré': '.xlsx',
     'Microsoft Excel': '.xls',
   }
@@ -53,8 +51,6 @@ export const getResource = async ({ catalogConfig, importConfig, resourceId, tmp
     downloadUrl = `${source.url}/${source.name}/all${extensionTable[format]}`
   } else if (source.service === undefined) {
     downloadUrl = `${source.url}`
-  } else if (source.service === 'AFS') {
-    downloadUrl = `${source.url}${source.name}/items?&crs=${source.projections![0]}&f=${afsTable[format]}&sortby=gid`
   } else if (source.service === 'WFS') {
     downloadUrl = `${source.url}?SERVICE=WFS&VERSION=2.0.0&request=GetFeature&typename=${source.name}&outputFormat=${wfsTable[format]}&startIndex=0&sortby=gid`
   } else {
