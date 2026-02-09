@@ -14,17 +14,12 @@
     "service": {
       "type": "string",
       "title": "Web Service",
-      "description": "The source of the file",
-      "properties": {
-        "id": {
-          "type": "string"
-        },
-        "name": {
-          "type": "string"
-        },
-        "image_url": {
-          "type": "string"
-        }
+      "x-i18n-title": {
+        "fr": "Service Web"
+      },
+      "description": "This resource is available from multiple sources (web services, local files). Select the source you want to use for the import.",
+      "x-i18n-description": {
+        "fr": "Cette ressource est disponible via plusieurs sources (services web, fichiers locaux). Sélectionnez la source que vous souhaitez utiliser pour l'import."
       },
       "layout": {
         "cols": 6,
@@ -39,23 +34,12 @@
     "format": {
       "type": "string",
       "title": "Format",
-      "properties": {
-        "id": {
-          "type": "string"
-        },
-        "name": {
-          "type": "string"
-        },
-        "image_url": {
-          "type": "string"
-        }
-      },
       "layout": {
         "if": "parent.data.service != null",
         "cols": 6,
         "getItems": {
           "url": "${context.catalogConfig}/fr/indexer/elastic/_search/?q=${parent.data.service}&q=_id:${context.resourceId}",
-          "itemsResults": "(function(){return data.hits.hits[0]._source['metadata-fr'].link.find(x => x.service === parent.data.service || x.url === parent.data.service).formats; })()"
+          "itemsResults": "(function(){const service = data.hits.hits[0]._source['metadata-fr'].link.find(x => x.service === parent.data.service || x.url === parent.data.service); let formats = service.formats; if (['WS', 'WFS', 'AFS'].includes(service.service) && !formats.includes('CSV')) {formats.push('CSV');} return formats; })()"
         }
       }
     }

@@ -8,7 +8,7 @@ type ResourceList = Awaited<ReturnType<CatalogPlugin['list']>>['results']
 const apiList: Array<string | undefined> = ['WS', 'AFS', 'WFS', undefined]
 const formatsList = [
   'CSV', 'ODS', 'Excel non structuré', 'Microsoft Excel',
-  'ZIP', 'Shapefile (zip)', 'GeoJSON', 'JSON', 'XML', 'GML', 'KML']
+  'ZIP', 'Shapefile (zip)', 'SHAPE-ZIP', 'GeoJSON', 'JSON', 'XML', 'GML', 'KML']
 
 const getBestFormat = (formats: string[]) => {
   return [...formats].sort((a, b) =>
@@ -78,16 +78,11 @@ export const list = async ({ catalogConfig, params }: ListContext<OneGeoSuiteCon
         return apiList.indexOf(x.service) - apiList.indexOf(y.service)
       })
 
-      const formats: Array<string> = sources[0].formats
-      formats.sort((a: string, b: string) => {
-        return (formatsList.indexOf(a) === -1 ? formats.length : formatsList.indexOf(a)) - (formatsList.indexOf(b) === -1 ? formats.length : formatsList.indexOf(b))
-      })
-
       res.push({
         id: `${catalog._id}`,
         title: catalog._source['metadata-fr'].title,
         description: sources[0].description,
-        format: formats[0],
+        format: '',
         type: 'resource'
       } as ResourceList[number])
     }
