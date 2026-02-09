@@ -22,7 +22,7 @@
         "cols": 6,
         "getItems": {
           "url": "${context.catalogConfig.url}/fr/indexer/elastic/_search/?q=_id:${context.resourceId}",
-          "itemsResults": "(function() { const links = data.hits.hits[0]._source['metadata-fr'].link; return links.filter(l => l.formats.find(f => ['CSV', 'ODS', 'Excel non structuré', 'Microsoft Excel','ZIP', 'Shapefile (zip)', 'GeoJSON', 'JSON', 'XML', 'GML', 'KML'].includes(f)) || ['WS', 'AFS', 'WFS'].includes(l.service)).map((l, i) =>  [l, i] );  })()",
+          "itemsResults": "(function() { const links = data.hits.hits[0]._source['metadata-fr'].link; return links.filter(l => l.formats.find(f => ['CSV', 'Excel non structuré', 'Microsoft Excel','ZIP', 'Shapefile (zip)', 'GeoJSON', 'JSON', 'KML'].includes(f)) || ['WS', 'WFS'].includes(l.service)).map((l, i) =>  [l, i] ).filter(s => ['WS', 'WFS', undefined].includes(s[0].service));  })()",
           "itemTitle": "item[0].service?? 'Local N°' + (item[1] + 1)",
           "itemValue": "item[0].service??  item[0].url"
         }
@@ -36,7 +36,7 @@
         "cols": 6,
         "getItems": {
           "url": "${context.catalogConfig.url}/fr/indexer/elastic/_search/?q=${parent.data.service}&q=_id:${context.resourceId}",
-          "itemsResults": "(function(){const service = data.hits.hits[0]._source['metadata-fr'].link.find(x => x.service === parent.data.service || x.url === parent.data.service); let formats = service.formats; if (['WS', 'WFS', 'AFS'].includes(service.service) && !formats.includes('CSV')) {formats.push('CSV');} return formats; })()"
+          "itemsResults": "(function(){const service = data.hits.hits[0]._source['metadata-fr'].link.find(x => x.service === parent.data.service || x.url === parent.data.service); let formats = service.formats; if (['WS', 'WFS'].includes(service.service) && !formats.includes('CSV')) {formats.push('CSV');} return formats.filter(f => ['CSV', 'Excel non structuré', 'Microsoft Excel','ZIP', 'Shapefile (zip)', 'GeoJSON', 'JSON', 'KML'].includes(f)); })()"
         }
       }
     }
