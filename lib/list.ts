@@ -15,6 +15,7 @@ const extensionTable: Record<string, string> = {
   GeoJSON: '.geojson',
   JSON: '.json',
   'Shapefile (zip)': '.zip',
+  'SHAPE-ZIP': '.zip',
   ZIP: '.zip',
   GML: '.gml',
   KML: '.kml',
@@ -99,7 +100,8 @@ export const list = async ({ catalogConfig, params }: ListContext<OneGeoSuiteCon
           if (formatsList.includes(format)) formatsSet.add(format)
         }
       }
-      const formats = (new Array(...formatsSet)).sort((a: string, b: string) => { return formatsList.indexOf(a) - formatsList.indexOf(b) }).map(x => extensionTable[x].slice(1))
+      let formats = (new Array(...formatsSet)).sort((a: string, b: string) => { return formatsList.indexOf(a) - formatsList.indexOf(b) })
+      formats = formats.map(x => extensionTable[x]?.slice(1) ?? x)
 
       res.push({
         id: `${catalog._id}`,

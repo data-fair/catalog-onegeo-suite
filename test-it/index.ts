@@ -10,7 +10,7 @@ const catalogPlugin: CatalogPlugin = plugin as CatalogPlugin
 
 // List of all sites : https://www.onegeosuite.fr/docs/sites_onegeosuite
 
-const catalogConfig = { url: 'https://demo.onegeosuite.fr/' }
+const catalogConfig = { url: 'https://www.datasud.fr' }
 
 const tmpDir = './data/test/downloads'
 
