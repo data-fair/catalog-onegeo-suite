@@ -154,7 +154,7 @@ export const getResource = async ({ catalogConfig, importConfig, resourceId, tmp
     },
     keywords: catalog._source['metadata-fr'].keyword,
     updatedAt: catalog._source['metadata-fr'].lastUpdateDate ?? undefined,
-    image: catalog._source['metadata-fr'].image.find((x: { type: string, url: string | null }) => { return x.type === 'thumbnail' && !!x.url }).url ?? null,
+    image: catalog._source['metadata-fr'].image.find((x: { type: string, url: string | null }) => { return x.type === 'thumbnail' && !!x.url })?.url ?? null,
     origin
   }
 }

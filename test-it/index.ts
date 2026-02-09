@@ -10,15 +10,13 @@ const catalogPlugin: CatalogPlugin = plugin as CatalogPlugin
 
 // List of all sites : https://www.onegeosuite.fr/docs/sites_onegeosuite
 
-const catalogConfig = { url: 'https://demo.onegeosuite.fr' }
-// const catalogConfig = { url: 'https://www.datasud.fr' }
+const catalogConfig = { url: 'https://demo.onegeosuite.fr/' }
 
 const tmpDir = './data/test/downloads'
 
 const getResourceParams = {
   catalogConfig,
   secrets: {},
-  resourceId: 'EPEnMZwBOacF4e8lhZkS',
   importConfig: { format: 'CSV', service: 'WFS' },
   update: { metadata: true, schema: true },
   tmpDir,
@@ -62,8 +60,16 @@ describe('catalog-OneGeoSuite', () => {
     beforeEach(async () => await fs.emptyDir(tmpDir))
 
     await it('with correct params', async () => {
+      const resources = await catalogPlugin.list({
+        catalogConfig,
+        secrets: {},
+        params: {}
+      })
+      const resourceId = resources.results[0].id
+
       const resource = await catalogPlugin.getResource({
         ...getResourceParams,
+        resourceId
       })
 
       assert.ok(resource, 'The resource should exist')

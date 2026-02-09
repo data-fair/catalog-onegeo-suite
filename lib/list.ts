@@ -10,6 +10,20 @@ const formatsList = [
   'CSV', 'ODS', 'Excel non structuré', 'Microsoft Excel',
   'ZIP', 'Shapefile (zip)', 'SHAPE-ZIP', 'GeoJSON', 'JSON', 'XML', 'GML', 'KML']
 
+const extensionTable: Record<string, string> = {
+  CSV: '.csv',
+  GeoJSON: '.geojson',
+  JSON: '.json',
+  'Shapefile (zip)': '.zip',
+  ZIP: '.zip',
+  GML: '.gml',
+  KML: '.kml',
+  XML: '.xml',
+  ODS: '.ods',
+  'Excel non structuré': '.xlsx',
+  'Microsoft Excel': '.xls',
+}
+
 const getBestFormat = (formats: string[]) => {
   return [...formats].sort((a, b) =>
     (formatsList.indexOf(a) === -1 ? formatsList.length : formatsList.indexOf(a)) -
@@ -58,7 +72,7 @@ const baseReqDataset = (input: string = '*', size: number = 50, from: number = 1
 export const list = async ({ catalogConfig, params }: ListContext<OneGeoSuiteConfig, OneGeoCapabilities>): ReturnType<CatalogPlugin['list']> => {
   const url = catalogConfig.url
   const listResources = async (params: Record<any, any>) => {
-    let catalogs = (await axios.post(new URL('fr/indexer/elastic/_search/', url).href, baseReqDataset(params.q, params.size, params.page))).data
+    let catalogs = (await axios.post(new URL('fr/indexer/elastic/_search/', url).href, baseReqDataset(params.q ? '*' : params.q, params.size, params.page))).data
     const count = catalogs.hits.total.value
     catalogs = catalogs.hits.hits
     const res = []
@@ -78,11 +92,20 @@ export const list = async ({ catalogConfig, params }: ListContext<OneGeoSuiteCon
         return apiList.indexOf(x.service) - apiList.indexOf(y.service)
       })
 
+      const formatsSet: Set<string> = new Set()
+
+      for (const source of sources) {
+        for (const format of source.formats) {
+          if (formatsList.includes(format)) formatsSet.add(format)
+        }
+      }
+      const formats = (new Array(...formatsSet)).sort((a: string, b: string) => { return formatsList.indexOf(a) - formatsList.indexOf(b) }).map(x => extensionTable[x].slice(1))
+
       res.push({
         id: `${catalog._id}`,
         title: catalog._source['metadata-fr'].title,
         description: sources[0].description,
-        format: '',
+        format: formats.slice(0, 3).join(', ') + (formats.length ? '..' : ''),
         type: 'resource'
       } as ResourceList[number])
     }
