@@ -20,10 +20,10 @@ const extensionTable: Record<string, string> = {
   'Microsoft Excel': '.xls',
 }
 
-export const sortList = (formats: any[], reference: any[]) => {
+export const sortList = (formats: any[], reference: any[], func = (x: any) => { return x }) => {
   return [...formats].sort((a, b) =>
-    (reference.indexOf(a) === -1 ? reference.length : reference.indexOf(a)) -
-    (reference.indexOf(b) === -1 ? reference.length : reference.indexOf(b))
+    (reference.indexOf(func(a)) === -1 ? reference.length : reference.indexOf(func(a))) -
+    (reference.indexOf(func(b)) === -1 ? reference.length : reference.indexOf(func(b)))
   )
 }
 const baseReqDataset = (input: string = '*', size: number = 500, from: number = 1) => {

@@ -18,8 +18,9 @@ export const getResource = async ({ catalogConfig, importConfig, resourceId, tmp
   } else {
     if (!service) {
       const links = catalog._source['metadata-fr'].link.filter((x: Link) => { return x.formats.includes(format) })
-      service = sortList(links.map((x: Link) => x.service), apiList)[0]
+      const link: Link = sortList(links, apiList, (x: any) => { return x.service })[0]
       if (!service) throw Error(`resource not found for format ${format}`)
+      service = link.service ?? link.url
     }
   }
 
