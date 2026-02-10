@@ -6,7 +6,7 @@ import axios from '@data-fair/lib-node/axios.js'
 
 export const getResource = async ({ catalogConfig, importConfig, resourceId, tmpDir, log }: GetResourceContext<OneGeoSuiteConfig>): ReturnType<CatalogPlugin['getResource']> => {
   let service: string = importConfig.service
-  let format: string = (service ? importConfig.format : undefined) || importConfig.format2
+  let format: string = service ? importConfig.format : (importConfig.format2 || undefined)
   const catalog = (await axios.get(new URL(`fr/indexer/elastic/_search/?q=uuid.keyword:${resourceId}%20AND%20is_metadata:true`, catalogConfig.url).href)).data.hits.hits[0]
   if (!format) {
     if (!service) {
