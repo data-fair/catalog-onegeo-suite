@@ -4,75 +4,38 @@ import { apiList, formatsList, sortList } from './list.ts'
 
 import axios from '@data-fair/lib-node/axios.js'
 
-export const getResource = async ({ catalogConfig, importConfig, resourceId, tmpDir, log }: GetResourceContext<OneGeoSuiteConfig>): ReturnType<CatalogPlugin['getResource']> => {
-  let service: string = importConfig.service
-  let format: string = service ? importConfig.format : (importConfig.format2 || undefined)
+// table of format -> extension
+const wfsTable: Record<string, string> = {
+  CSV: 'csv',
+  JSON: 'application/json',
+  GeoJSON: 'application/json',
+  'Shapefile (zip)': 'SHAPE-ZIP',
+  'SHAPE-ZIP': 'SHAPE-ZIP',
+  KML: 'kml',
+}
+
+// table of format -> extension
+const extensionTable: Record<string, string> = {
+  CSV: '.csv',
+  GeoJSON: '.geojson',
+  JSON: '.json',
+  'Shapefile (zip)': '.zip',
+  'SHAPE-ZIP': '.zip',
+  KML: '.kml',
+  'Excel non structuré': '.xlsx',
+  'Microsoft Excel': '.xls',
+}
+
+export const getResource = async ({
+  catalogConfig,
+  resourceId,
+  tmpDir,
+  log
+}: GetResourceContext<OneGeoSuiteConfig>): ReturnType<CatalogPlugin['getResource']> => {
   const catalog = (await axios.get(new URL(`fr/indexer/elastic/_search/?q=uuid.keyword:${resourceId}%20AND%20is_metadata:true`, catalogConfig.url).href)).data.hits.hits[0]
-  if (!format) {
-    if (!service) {
-      const links = catalog._source['metadata-fr'].link.filter((x: any) => { return apiList.includes(x.service) && x.formats.find((y: string) => { return formatsList.includes(y) }) })
-      service = sortList(links.map((x: Link) => x.service), apiList)[0]
-    }
-    format = sortList(catalog._source['metadata-fr'].link.find((x: Link) => { return (x.service === service || x.url === service) && x.formats.find((y: string) => { return formatsList.includes(y) }) }).formats, formatsList)[0]
-    if (!format) throw Error(`resource not found for service ${service}`)
-  } else {
-    if (!service) {
-      const links = catalog._source['metadata-fr'].link.filter((x: Link) => { return x.formats.includes(format) })
-      const link: Link = sortList(links, apiList, (x: any) => { return x.service })[0]
-      if (links.length === 0) throw Error(`resource not found for format ${format}`)
-      service = link.service ?? link.url
-    }
-  }
-
   if (!catalog) throw Error(`resource not found for ${resourceId} in ${catalogConfig.url}`)
-  if (!service) throw Error('resource not found')
-  if (!format) throw Error(`resource not found for service ${service}`)
 
-  // filter links by format and service
-  const source: Link = catalog._source['metadata-fr'].link.find((x: Link) => {
-    return x.service === service || x.url === service
-  })
-  if (!source) throw Error('resource not found')
-  // table of format for make WFS url
-  const wfsTable: Record<string, string> = {
-    CSV: 'csv',
-    JSON: 'application/json',
-    GeoJSON: 'application/json',
-    'Shapefile (zip)': 'SHAPE-ZIP',
-    'SHAPE-ZIP': 'SHAPE-ZIP',
-    KML: 'kml',
-  }
-  // table of format
-  const extensionTable: Record<string, string> = {
-    CSV: '.csv',
-    GeoJSON: '.geojson',
-    JSON: '.json',
-    'Shapefile (zip)': '.zip',
-    'SHAPE-ZIP': '.zip',
-    KML: '.kml',
-    'Excel non structuré': '.xlsx',
-    'Microsoft Excel': '.xls',
-  }
-
-  let downloadUrl: string
-  if (source.service === 'WS') {
-    if (extensionTable[format] === undefined) throw Error(`Format ${format} not valid for ${service}`)
-    downloadUrl = `${source.url}/${source.name}/all${extensionTable[format]}`
-  } else if (source.service === undefined) {
-    downloadUrl = `${source.url}`
-  } else if (source.service === 'WFS') {
-    if (wfsTable[format] === undefined) throw Error(`Format ${format} not valid for ${service}`)
-    downloadUrl = `${source.url}?SERVICE=WFS&VERSION=2.0.0&request=GetFeature&typename=${source.name}&outputFormat=${wfsTable[format]}`
-  } else {
-    downloadUrl = `${source.url}`
-  }
-
-  await log.step(`Downloading the file ${downloadUrl}`)
-
-  // Download the resource
-  const fs = await import('node:fs')
-  const path = await import('path')
-
+  // get origine url
   const axiosPortail = axios.create({
     validateStatus: function (status) {
       return status >= 200 && status < 500
@@ -87,19 +50,57 @@ export const getResource = async ({ catalogConfig, importConfig, resourceId, tmp
   }
   const origin = portail ? `${catalogConfig.url}/${portail}/jeux-de-donnees/${catalog._source.slug}/info` : ''
 
-  let response
-  try {
-    response = await axios.get(downloadUrl, {
-      responseType: 'stream',
+  const links: Link[] = catalog._source['metadata-fr'].link.filter((x: Link) => {
+    return apiList.includes(x.service) && x.formats.find((y: string) => {
+      return formatsList.includes(y)
     })
-    if (response.headers['content-type'] === 'text/html') {
-      response = undefined
-      throw Error('return HTML page')
-    }
+  })
 
-    await log.info(`Get file with ${downloadUrl} successfully! ${response.status}`)
-  } catch (e) {
-    await log.warning(`Get file fail with this url: ${downloadUrl}; ${e}`)
+  // list all url possible
+  let downloadUrls: { url: string, format: string, service: string | undefined, description: string | undefined }[] = []
+
+  for (const link of links) {
+    const formats = link.formats.filter((f: string) => {
+      return formatsList.includes(f)
+    })
+    for (const format of formats) {
+      if (link.service === 'WS' && extensionTable[format]) {
+        downloadUrls.push({ url: `${link.url}/${link.name}/all${extensionTable[format]}`, format, service: link.service, description: link.description })
+      } else if (link.service === undefined) {
+        downloadUrls.push({ url: `${link.url}`, format, service: link.service, description: link.description })
+      } else if (link.service === 'WFS' && wfsTable[format]) {
+        downloadUrls.push({ url: `${link.url}?SERVICE=WFS&VERSION=2.0.0&request=GetFeature&typename=${link.name}&outputFormat=${wfsTable[format]}`, format, service: link.service, description: link.description })
+      }
+    }
+  }
+  downloadUrls = sortList(downloadUrls, apiList, (x: any) => { return x.service })
+  downloadUrls = sortList(downloadUrls, formatsList, (x: any) => { return x.format })
+
+  // Download the resource
+  const fs = await import('node:fs')
+  const path = await import('path')
+  let response
+  let format: string
+  let description: string | undefined
+
+  for (const downloadUrl of downloadUrls) {
+    await log.step(`Downloading the file ${downloadUrl.url}; format: ${downloadUrl.format}; service: ${downloadUrl.service}`)
+
+    try {
+      response = await axios.get(downloadUrl.url, {
+        responseType: 'stream',
+      })
+      if (response.headers['content-type'] === 'text/html') {
+        response = undefined
+        throw Error('return HTML page')
+      }
+      format = downloadUrl.format
+      description = downloadUrl.description
+      await log.info(`Get file with ${downloadUrl.url} successfully! ${response.status}`)
+    } catch (e) {
+      await log.warning(`Downloading fail with this url: ${downloadUrl}; ${e}`)
+    }
+    if (response) break
   }
 
   if (!response) {
@@ -107,7 +108,7 @@ export const getResource = async ({ catalogConfig, importConfig, resourceId, tmp
   }
 
   // Create a filename
-  const fileName = catalog._source.slug + extensionTable[format]
+  const fileName = catalog._source.slug + extensionTable[format!]
   const filePath = path.join(tmpDir, fileName)
   await log.info(`Downloading resource to ${fileName}`)
 
@@ -150,9 +151,9 @@ export const getResource = async ({ catalogConfig, importConfig, resourceId, tmp
     id: resourceId,
     slug: catalog._source.slug,
     title: catalog._source['metadata-fr'].title,
-    description: source.description ?? catalog._source['metadata-fr'].abstratc,
+    description: description ?? catalog._source['metadata-fr'].abstratc,
     filePath,
-    format,
+    format: format!,
     frequency,
     license: {
       href: '',
@@ -160,7 +161,9 @@ export const getResource = async ({ catalogConfig, importConfig, resourceId, tmp
     },
     keywords: catalog._source['metadata-fr'].keyword,
     updatedAt: catalog._source['metadata-fr'].lastUpdateDate ?? undefined,
-    image: catalog._source['metadata-fr'].image.find((x: { type: string, url: string | null }) => { return x.type === 'thumbnail' && !!x.url })?.url ?? null,
+    image: catalog._source['metadata-fr'].image.find((x: { type: string, url: string | null }) => {
+      return x.type === 'thumbnail' && !!x.url
+    })?.url ?? null,
     origin
   }
 }

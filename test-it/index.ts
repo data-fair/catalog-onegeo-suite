@@ -17,7 +17,7 @@ const tmpDir = './data/test/downloads'
 const getResourceParams = {
   catalogConfig,
   secrets: {},
-  importConfig: { format2: 'CSV' },
+  importConfig: {},
   update: { metadata: true, schema: true },
   tmpDir,
   log: logFunctions

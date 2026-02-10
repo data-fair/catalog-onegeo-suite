@@ -11,7 +11,6 @@ export const capabilities = [
   'pagination',
 
   'import',
-  'importConfig',
 
 ] satisfies Capability[]
 

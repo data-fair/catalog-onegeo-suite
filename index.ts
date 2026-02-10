@@ -1,5 +1,5 @@
 import type CatalogPlugin from '@data-fair/types-catalogs'
-import { importConfigSchema, configSchema, assertConfigValid, type OneGeoSuiteConfig } from '#types'
+import { configSchema, assertConfigValid, type OneGeoSuiteConfig } from '#types'
 import { type OneGeoCapabilities, capabilities } from './lib/capabilities.ts'
 import i18n from './lib/i18n.ts'
 
@@ -30,7 +30,6 @@ const plugin: CatalogPlugin<OneGeoSuiteConfig, OneGeoCapabilities> = {
     capabilities
   },
 
-  importConfigSchema,
   configSchema,
   assertConfigValid
 }
