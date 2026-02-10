@@ -21,8 +21,8 @@
       "layout": {
         "cols": 6,
         "getItems": {
-          "url": "${context.catalogConfig.url}/fr/indexer/elastic/_search/?q=_id:${context.resourceId}",
-          "itemsResults": "(function() { const links = data.hits.hits[0]._source['metadata-fr'].link; return links.filter(l => l.formats.find(f => ['CSV', 'Excel non structuré', 'Microsoft Excel','ZIP', 'Shapefile (zip)', 'GeoJSON', 'JSON', 'KML'].includes(f)) || ['WS', 'WFS'].includes(l.service)).map((l, i) =>  [l, i] ).filter(s => ['WS', 'WFS', undefined].includes(s[0].service));  })()",
+          "url": "${context.catalogConfig.url}/fr/indexer/elastic/_search/?q=uuid.keyword:${context.resourceId}%20AND%20is_metadata:true",
+          "itemsResults": "(function() { const links = data.hits.hits[0]._source['metadata-fr'].link; return links.filter(l => l.formats.find(f => ['CSV', 'Excel non structuré', 'Microsoft Excel','ZIP', 'Shapefile (zip)', 'SHAPE-ZIP', 'GeoJSON', 'JSON', 'KML'].includes(f)) && ['WS', 'WFS', undefined].includes(l.service)).map((l, i) =>  [l, i] );  })()",
           "itemTitle": "item[0].service?? 'Local N°' + (item[1] + 1)",
           "itemValue": "item[0].service??  item[0].url"
         }
@@ -31,12 +31,32 @@
     "format": {
       "type": "string",
       "title": "Format",
+      "description": "Import format, if no service is set, the possible formats are unknown.",
+      "x-i18n-description": {
+        "fr": "Format d’importation, si aucun service n’est défini, les formats possibles sont inconnus."
+      },
       "layout": {
         "if": "parent.data.service != null",
         "cols": 6,
         "getItems": {
-          "url": "${context.catalogConfig.url}/fr/indexer/elastic/_search/?q=${parent.data.service}&q=_id:${context.resourceId}",
-          "itemsResults": "(function(){const service = data.hits.hits[0]._source['metadata-fr'].link.find(x => x.service === parent.data.service || x.url === parent.data.service); let formats = service.formats; if (['WS', 'WFS'].includes(service.service) && !formats.includes('CSV')) {formats.push('CSV');} return formats.filter(f => ['CSV', 'Excel non structuré', 'Microsoft Excel','ZIP', 'Shapefile (zip)', 'GeoJSON', 'JSON', 'KML'].includes(f)); })()"
+          "url": "${context.catalogConfig.url}/fr/indexer/elastic/_search/?q=${parent.data.service}&q=uuid.keyword:${context.resourceId}%20AND%20is_metadata:true",
+          "itemsResults": "(function(){ const service = data.hits.hits[0]._source['metadata-fr'].link.find(x => x.service === parent.data.service || x.url === parent.data.service); let formats = service.formats; if (['WS', 'WFS'].includes(service.service) && !formats.includes('CSV')) {formats.push('CSV');} return formats.filter(f => ['CSV', 'Excel non structuré', 'Microsoft Excel','ZIP', 'Shapefile (zip)', 'SHAPE-ZIP', 'GeoJSON', 'JSON', 'KML'].includes(f));})()"
+        }
+      }
+    },
+    "format2": {
+      "type": "string",
+      "title": "Format",
+      "description": "Import format, if no service is set, the possible formats are unknown.",
+      "x-i18n-description": {
+        "fr": "Format d’importation, si aucun service n’est défini, les formats possibles sont inconnus."
+      },
+      "layout": {
+        "if": "parent.data.service == null",
+        "cols": 6,
+        "getItems": {
+          "url": "https://httpbin.org/get",
+          "itemsResults": "(function(){return ['CSV', 'Excel non structuré', 'Microsoft Excel','ZIP', 'Shapefile (zip)', 'SHAPE-ZIP', 'GeoJSON', 'JSON', 'KML']})()"
         }
       }
     }

@@ -26,7 +26,7 @@ export const sortList = (formats: any[], reference: any[]) => {
     (reference.indexOf(b) === -1 ? reference.length : reference.indexOf(b))
   )
 }
-const baseReqDataset = (input: string = '*', size: number = 100, from: number = 1) => {
+const baseReqDataset = (input: string = '*', size: number = 500, from: number = 1) => {
   return {
     from: (from - 1) * size,
     size: Math.min(size, 10000),
@@ -47,7 +47,7 @@ const baseReqDataset = (input: string = '*', size: number = 100, from: number = 
               }
             }]
           }
-        }, { term: { is_metadata: true } }, {
+        }, { term: { is_metadata: true } }, { term: { 'editorial-metadata.isOpenAccess': true } }, {
           bool: {
             should: [
               ...apiList.filter((x: any) => { return x }).map((x: any) => { return { term: { 'metadata-fr.link.service.keyword': x } } }),
@@ -87,7 +87,7 @@ const countReq = (input: string = '*') => {
               }
             }]
           }
-        }, { term: { is_metadata: true } }, {
+        }, { term: { is_metadata: true } }, { term: { 'editorial-metadata.isOpenAccess': true } }, {
           bool: {
             should: [
               ...apiList.filter((x: any) => x).map((x: any) => ({ term: { 'metadata-fr.link.service.keyword': x } })),
@@ -121,7 +121,13 @@ const countReq = (input: string = '*') => {
 export const list = async ({ catalogConfig, params }: ListContext<OneGeoSuiteConfig, OneGeoCapabilities>): ReturnType<CatalogPlugin['list']> => {
   const url = catalogConfig.url
   const listResources = async (params: Record<any, any>) => {
-    const catalogs = (await axios.post(new URL('fr/indexer/elastic/_search/', url).href, baseReqDataset(params.q || '*', params.size, params.page))).data.hits.hits
+    let catalogs
+    try {
+      catalogs = (await axios.post(new URL('fr/indexer/elastic/_search/', url).href, baseReqDataset(params.q || '*', params.size, params.page))).data.hits.hits
+    } catch (e) {
+      // @ts-ignore
+      throw Error(`Axios error: ${e?.status ?? ''} ${e?.message}`)
+    }
     const count = (await axios.post(new URL('fr/indexer/elastic/_search/', url).href, countReq(params.q))).data.aggregations.unique_datasets.value
     const res = []
 
@@ -151,7 +157,7 @@ export const list = async ({ catalogConfig, params }: ListContext<OneGeoSuiteCon
       formats = formats.map(x => extensionTable[x]?.slice(1) ?? x)
 
       res.push({
-        id: `${catalog._id}`,
+        id: `${catalog._source.uuid}`,
         title: catalog._source['metadata-fr'].title,
         description: sources[0].description,
         format: formats.slice(0, 3).join(', ') + (formats.length ? '..' : ''),

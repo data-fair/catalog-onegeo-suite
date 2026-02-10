@@ -5,26 +5,33 @@ import { apiList, formatsList, sortList } from './list.ts'
 import axios from '@data-fair/lib-node/axios.js'
 
 export const getResource = async ({ catalogConfig, importConfig, resourceId, tmpDir, log }: GetResourceContext<OneGeoSuiteConfig>): ReturnType<CatalogPlugin['getResource']> => {
-  let format: string = importConfig.format
   let service: string = importConfig.service
-  const catalog = (await axios.get(new URL(`fr/indexer/elastic/_search/?q=_id:${resourceId}`, catalogConfig.url).href)).data.hits.hits[0]
+  let format: string = (service ? importConfig.format : undefined) || importConfig.format2
+  const catalog = (await axios.get(new URL(`fr/indexer/elastic/_search/?q=uuid.keyword:${resourceId}%20AND%20is_metadata:true`, catalogConfig.url).href)).data.hits.hits[0]
   if (!format) {
     if (!service) {
       const links = catalog._source['metadata-fr'].link.filter((x: any) => { return apiList.includes(x.service) && x.formats.find((y: string) => { return formatsList.includes(y) }) })
       service = sortList(links.map((x: Link) => x.service), apiList)[0]
     }
-    format = sortList(catalog._source['metadata-fr'].link.find((x: Link) => { return x.service === service && x.formats.find((y: string) => { return formatsList.includes(y) }) }).formats, formatsList)[0]
+    format = sortList(catalog._source['metadata-fr'].link.find((x: Link) => { return (x.service === service || x.url === service) && x.formats.find((y: string) => { return formatsList.includes(y) }) }).formats, formatsList)[0]
+    if (!format) throw Error(`resource not found for service ${service}`)
+  } else {
+    if (!service) {
+      const links = catalog._source['metadata-fr'].link.filter((x: Link) => { return x.formats.includes(format) })
+      service = sortList(links.map((x: Link) => x.service), apiList)[0]
+      if (!service) throw Error(`resource not found for format ${format}`)
+    }
   }
 
-  if (!catalog) {
-    throw Error(`resource ${service} not found for ${resourceId} in ${catalogConfig.url}`)
-  }
+  if (!catalog) throw Error(`resource not found for ${resourceId} in ${catalogConfig.url}`)
+  if (!service) throw Error('resource not found')
+  if (!format) throw Error(`resource not found for service ${service}`)
 
   // filter links by format and service
   const source: Link = catalog._source['metadata-fr'].link.find((x: Link) => {
     return x.service === service || x.url === service
   })
-
+  if (!source) throw Error('resource not found')
   // table of format for make WFS url
   const wfsTable: Record<string, string> = {
     CSV: 'csv',
@@ -48,10 +55,12 @@ export const getResource = async ({ catalogConfig, importConfig, resourceId, tmp
 
   let downloadUrl: string
   if (source.service === 'WS') {
+    if (extensionTable[format] === undefined) throw Error(`Format ${format} not valid for ${service}`)
     downloadUrl = `${source.url}/${source.name}/all${extensionTable[format]}`
   } else if (source.service === undefined) {
     downloadUrl = `${source.url}`
   } else if (source.service === 'WFS') {
+    if (wfsTable[format] === undefined) throw Error(`Format ${format} not valid for ${service}`)
     downloadUrl = `${source.url}?SERVICE=WFS&VERSION=2.0.0&request=GetFeature&typename=${source.name}&outputFormat=${wfsTable[format]}&startIndex=0&sortby=gid`
   } else {
     downloadUrl = `${source.url}`
