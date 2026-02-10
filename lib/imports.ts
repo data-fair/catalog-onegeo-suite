@@ -61,7 +61,7 @@ export const getResource = async ({ catalogConfig, importConfig, resourceId, tmp
     downloadUrl = `${source.url}`
   } else if (source.service === 'WFS') {
     if (wfsTable[format] === undefined) throw Error(`Format ${format} not valid for ${service}`)
-    downloadUrl = `${source.url}?SERVICE=WFS&VERSION=2.0.0&request=GetFeature&typename=${source.name}&outputFormat=${wfsTable[format]}&startIndex=0&sortby=gid`
+    downloadUrl = `${source.url}?SERVICE=WFS&VERSION=2.0.0&request=GetFeature&typename=${source.name}&outputFormat=${wfsTable[format]}`
   } else {
     downloadUrl = `${source.url}`
   }

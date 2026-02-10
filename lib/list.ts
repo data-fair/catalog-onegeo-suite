@@ -47,7 +47,7 @@ const baseReqDataset = (input: string = '*', size: number = 500, from: number = 
               }
             }]
           }
-        }, { term: { is_metadata: true } }, { term: { 'editorial-metadata.isOpenAccess': true } }, {
+        }, { term: { is_metadata: true } }, { term: { 'editorial-metadata.defaultPermissionLevel': 3 } }, {
           bool: {
             should: [
               ...apiList.filter((x: any) => { return x }).map((x: any) => { return { term: { 'metadata-fr.link.service.keyword': x } } }),
@@ -87,7 +87,7 @@ const countReq = (input: string = '*') => {
               }
             }]
           }
-        }, { term: { is_metadata: true } }, { term: { 'editorial-metadata.isOpenAccess': true } }, {
+        }, { term: { is_metadata: true } }, { term: { 'editorial-metadata.defaultPermissionLevel': 3 } }, {
           bool: {
             should: [
               ...apiList.filter((x: any) => x).map((x: any) => ({ term: { 'metadata-fr.link.service.keyword': x } })),
