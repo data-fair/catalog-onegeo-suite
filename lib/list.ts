@@ -6,10 +6,9 @@ import axios from '@data-fair/lib-node/axios.js'
 type ResourceList = Awaited<ReturnType<CatalogPlugin['list']>>['results']
 
 export const apiList: Array<string | undefined> = ['WS', 'WFS', undefined]
-export const formatsList = [
-  'GeoJSON', 'SHAPE-ZIP', 'Shapefile (zip)', 'CSV', 'JSON', 'Excel non structuré', 'Microsoft Excel', 'KML']
+export const formatsList = ['GeoJSON', 'SHAPE-ZIP', 'Shapefile (zip)', 'CSV', 'JSON', 'Excel non structuré', 'Microsoft Excel', 'KML']
 
-const extensionTable: Record<string, string> = {
+export const extensionTable: Record<string, string> = {
   CSV: '.csv',
   GeoJSON: '.geojson',
   JSON: '.json',

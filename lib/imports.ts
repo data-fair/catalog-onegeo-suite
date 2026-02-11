@@ -1,6 +1,6 @@
 import type { CatalogPlugin, GetResourceContext } from '@data-fair/types-catalogs'
 import type { Link, OneGeoSuiteConfig } from '#types'
-import { apiList, formatsList, sortList } from './list.ts'
+import { apiList, extensionTable, formatsList, sortList } from './list.ts'
 
 import axios from '@data-fair/lib-node/axios.js'
 
@@ -12,18 +12,6 @@ const wfsTable: Record<string, string> = {
   'Shapefile (zip)': 'SHAPE-ZIP',
   'SHAPE-ZIP': 'SHAPE-ZIP',
   KML: 'kml',
-}
-
-// table of format -> extension
-const extensionTable: Record<string, string> = {
-  CSV: '.csv',
-  GeoJSON: '.geojson',
-  JSON: '.json',
-  'Shapefile (zip)': '.zip',
-  'SHAPE-ZIP': '.zip',
-  KML: '.kml',
-  'Excel non structuré': '.xlsx',
-  'Microsoft Excel': '.xls',
 }
 
 export const getResource = async ({
