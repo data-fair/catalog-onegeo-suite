@@ -41,12 +41,12 @@ export const getResource = async ({
       return status >= 200 && status < 500
     }
   })
-
   let portail
-  if ([200].includes((await axiosPortail.get(new URL('explorer/fr', catalogConfig.url).href)).status)) {
-    portail = 'explorer/fr'
-  } else if ([200].includes((await axiosPortail.get(new URL('portail/fr', catalogConfig.url).href)).status)) {
-    portail = 'portail/fr'
+  for (const i of ['explorer/fr', 'portail/fr']) {
+    if ((await axiosPortail.get(new URL('explorer/fr', catalogConfig.url).href)).status === 200) {
+      portail = i
+      break
+    }
   }
   const origin = portail ? `${catalogConfig.url}/${portail}/jeux-de-donnees/${catalog._source.slug}/info` : ''
 
@@ -83,6 +83,8 @@ export const getResource = async ({
       }
     }
   }
+
+  // sort download url by importance (format and web service)
   downloadUrls = sortList(downloadUrls, apiList, (x: any) => {
     return x.service
   })
@@ -97,6 +99,7 @@ export const getResource = async ({
   let format: string
   let description: string | undefined
 
+  // try download urls until its good
   for (const downloadUrl of downloadUrls) {
     await log.step(`Downloading the file ${downloadUrl.url}; format: ${downloadUrl.format}; service: ${downloadUrl.service}`)
 
@@ -117,6 +120,7 @@ export const getResource = async ({
     if (response) break
   }
 
+  // check download failed
   if (!response) {
     throw Error(`Download failed ${origin}`)
   }
@@ -179,7 +183,7 @@ export const getResource = async ({
     updatedAt: catalog._source['metadata-fr'].lastUpdateDate ?? undefined,
     image: catalog._source['metadata-fr'].image.find((x: { type: string, url: string | null }) => {
       return x.type === 'thumbnail' && !!x.url
-    })?.url ?? null,
+    })?.url ?? undefined,
     origin
   }
 }

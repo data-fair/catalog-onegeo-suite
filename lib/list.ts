@@ -1,5 +1,5 @@
 import type { CatalogPlugin, ListContext } from '@data-fair/types-catalogs'
-import type { OneGeoSuiteConfig, Link } from '#types'
+import type { Link, OneGeoSuiteConfig } from '#types'
 import type { OneGeoCapabilities } from './capabilities.ts'
 import axios from '@data-fair/lib-node/axios.js'
 
@@ -20,7 +20,9 @@ const extensionTable: Record<string, string> = {
   'Microsoft Excel': '.xls',
 }
 
-export const sortList = (formats: any[], reference: any[], func = (x: any) => { return x }) => {
+export const sortList = (formats: any[], reference: any[], func = (x: any) => {
+  return x
+}) => {
   return [...formats].sort((a, b) =>
     (reference.indexOf(func(a)) === -1 ? reference.length : reference.indexOf(func(a))) -
     (reference.indexOf(func(b)) === -1 ? reference.length : reference.indexOf(func(b)))
@@ -50,8 +52,16 @@ const baseReqDataset = (input: string = '*', size: number = 500, from: number = 
         }, { term: { is_metadata: true } }, { term: { 'editorial-metadata.defaultPermissionLevel': 3 } }, {
           bool: {
             should: [
-              ...apiList.filter((x: any) => { return x }).map((x: any) => { return { term: { 'metadata-fr.link.service.keyword': x } } }),
-              ...formatsList.filter((x: any) => { return x }).map((x: any) => { return { term: { 'metadata-fr.link.formats.keyword': x } } })],
+              ...apiList.filter((x: any) => {
+                return x
+              }).map((x: any) => {
+                return { term: { 'metadata-fr.link.service.keyword': x } }
+              }),
+              ...formatsList.filter((x: any) => {
+                return x
+              }).map((x: any) => {
+                return { term: { 'metadata-fr.link.formats.keyword': x } }
+              })],
           }
         }],
         must_not: [{ term: { 'content-fr.status.keyword': 'draft' } }]
@@ -69,61 +79,65 @@ const countReq = (input: string = '*') => {
   return {
     size: 0,
     track_total_hits:
-    false,
+      false,
     query:
-    {
-      bool: {
-        must: [{
-          bool: {
-            should: [{
-              query_string: {
-                query: input || '*',
-                fields: ['data_and_metadata', 'metadata-fr.title^5', 'metadata-fr.abstract^3', 'content-fr.title^5', 'content-fr.excerpt^3', 'content-fr.plaintext'],
-                analyzer: 'my_search_analyzer',
-                fuzziness: 'AUTO',
-                minimum_should_match: '90%',
-                default_operator: 'AND',
-                boost: 5
+      {
+        bool: {
+          must: [{
+            bool: {
+              should: [{
+                query_string: {
+                  query: input || '*',
+                  fields: ['data_and_metadata', 'metadata-fr.title^5', 'metadata-fr.abstract^3', 'content-fr.title^5', 'content-fr.excerpt^3', 'content-fr.plaintext'],
+                  analyzer: 'my_search_analyzer',
+                  fuzziness: 'AUTO',
+                  minimum_should_match: '90%',
+                  default_operator: 'AND',
+                  boost: 5
+                }
+              }]
+            }
+          }, { term: { is_metadata: true } }, { term: { 'editorial-metadata.defaultPermissionLevel': 3 } }, {
+            bool: {
+              should: [
+                ...apiList.filter((x: any) => x).map((x: any) => ({ term: { 'metadata-fr.link.service.keyword': x } })),
+                ...formatsList.filter((x: any) => x).map((x: any) => ({ term: { 'metadata-fr.link.formats.keyword': x } }))
+              ],
+            }
+          }],
+          must_not:
+            [{ term: { 'content-fr.status.keyword': 'draft' } }],
+          filter:
+            {
+              terms: {
+                'type.keyword':
+                  ['dataset', 'nonGeographicDataset']
               }
-            }]
-          }
-        }, { term: { is_metadata: true } }, { term: { 'editorial-metadata.defaultPermissionLevel': 3 } }, {
-          bool: {
-            should: [
-              ...apiList.filter((x: any) => x).map((x: any) => ({ term: { 'metadata-fr.link.service.keyword': x } })),
-              ...formatsList.filter((x: any) => x).map((x: any) => ({ term: { 'metadata-fr.link.formats.keyword': x } }))
-            ],
-          }
-        }],
-        must_not:
-        [{ term: { 'content-fr.status.keyword': 'draft' } }],
-        filter:
-        {
-          terms: {
-            'type.keyword':
-            ['dataset', 'nonGeographicDataset']
-          }
+            }
         }
-      }
-    },
+      },
     aggs: {
       unique_datasets: {
         cardinality: {
           field: 'uuid.keyword',
           precision_threshold:
-          40000
+            40000
         }
       }
     }
   }
 }
 
-export const list = async ({ catalogConfig, params }: ListContext<OneGeoSuiteConfig, OneGeoCapabilities>): ReturnType<CatalogPlugin['list']> => {
+export const list = async ({
+  catalogConfig,
+  params
+}: ListContext<OneGeoSuiteConfig, OneGeoCapabilities>): ReturnType<CatalogPlugin['list']> => {
   const url = catalogConfig.url
   const listResources = async (params: Record<any, any>) => {
-    let catalogs
+    // get resources
+    let resources
     try {
-      catalogs = (await axios.post(new URL('fr/indexer/elastic/_search/', url).href, baseReqDataset(params.q || '*', params.size, params.page))).data.hits.hits
+      resources = (await axios.post(new URL('fr/indexer/elastic/_search/', url).href, baseReqDataset(params.q || '*', params.size, params.page))).data.hits.hits
     } catch (e) {
       // @ts-ignore
       throw Error(`Axios error: ${e?.status ?? ''} ${e?.message}`)
@@ -131,30 +145,13 @@ export const list = async ({ catalogConfig, params }: ListContext<OneGeoSuiteCon
     const count = (await axios.post(new URL('fr/indexer/elastic/_search/', url).href, countReq(params.q))).data.aggregations.unique_datasets.value
     const res = []
 
-    for (const catalog of catalogs) {
-      const sources: Array<Link> = catalog._source['metadata-fr'].link
-
-      // sort source by priority (services / format)
-      sources.sort((x: Link, y: Link) => {
-        const bestFormatX = formatsList.indexOf(sortList(x.formats, formatsList)[0]) === -1 ? formatsList.length : formatsList.indexOf(sortList(x.formats, formatsList)[0])
-        const bestFormatY = formatsList.indexOf(sortList(y.formats, formatsList)[0]) === -1 ? formatsList.length : formatsList.indexOf(sortList(y.formats, formatsList)[0])
-
-        if (bestFormatX !== bestFormatY) {
-          return bestFormatX - bestFormatY
-        }
-
-        return apiList.indexOf(x.service) - apiList.indexOf(y.service)
-      })
-
-      const formatsSet: Set<string> = new Set()
-
-      for (const source of sources) {
-        for (const format of source.formats) {
-          if (formatsList.includes(format)) formatsSet.add(format)
-        }
-      }
-      let formats = (new Array(...formatsSet)).sort((a: string, b: string) => { return formatsList.indexOf(a) - formatsList.indexOf(b) })
-      formats = formats.map(x => extensionTable[x]?.slice(1) ?? x)
+    for (const catalog of resources) {
+      // get sources
+      const sources: Link[] = catalog._source['metadata-fr'].link
+      // get all formats possible
+      const formats: string[] = sortList(new Array(...(new Set(sources.map((x: Link) => {
+        return x.formats
+      }).flat().filter((f: string) => formatsList.includes(f))))), formatsList).map((f: string) => extensionTable[f].slice(1))
 
       res.push({
         id: `${catalog._source.uuid}`,
@@ -166,7 +163,6 @@ export const list = async ({ catalogConfig, params }: ListContext<OneGeoSuiteCon
     }
     return [res, count]
   }
-  // List datasets
   const [resources, count] = await listResources(params)
   return {
     count,
