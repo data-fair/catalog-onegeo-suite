@@ -19,14 +19,27 @@ export const extensionTable: Record<string, string> = {
   'Microsoft Excel': '.xls',
 }
 
-export const sortList = (formats: any[], reference: any[], func = (x: any) => {
+export const sortList = (list: any[], reference: any[], func = (x: any) => {
   return x
 }) => {
-  return [...formats].sort((a, b) =>
+  return [...list].sort((a, b) =>
     (reference.indexOf(func(a)) === -1 ? reference.length : reference.indexOf(func(a))) -
     (reference.indexOf(func(b)) === -1 ? reference.length : reference.indexOf(func(b)))
   )
 }
+
+export const filterList = (list: any[], reference: any[], func = (x: any) => {
+  return x
+}) => {
+  return [...list].filter((a: any) => reference.includes(func(a)))
+}
+
+export const sortFilterList = (list: any[], reference: any[], func = (x: any) => {
+  return x
+}) => {
+  return sortList(filterList(list, reference, func), reference, func)
+}
+
 const baseReqDataset = (input: string = '*', size: number = 500, from: number = 1) => {
   return {
     from: (from - 1) * size,
@@ -148,9 +161,9 @@ export const list = async ({
       // get sources
       const sources: Link[] = catalog._source['metadata-fr'].link
       // get all formats possible
-      const formats: string[] = sortList(new Array(...(new Set(sources.map((x: Link) => {
+      const formats: string[] = sortFilterList([...(new Set(sources.map((x: Link) => {
         return x.formats
-      }).flat().filter((f: string) => formatsList.includes(f))))), formatsList).map((f: string) => extensionTable[f].slice(1))
+      }).flat()))], formatsList).map((f: string) => extensionTable[f].slice(1))
 
       res.push({
         id: `${catalog._source.uuid}`,

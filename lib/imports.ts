@@ -1,6 +1,6 @@
 import type { CatalogPlugin, GetResourceContext } from '@data-fair/types-catalogs'
 import type { Link, OneGeoSuiteConfig } from '#types'
-import { apiList, extensionTable, formatsList, sortList } from './list.ts'
+import { apiList, extensionTable, formatsList, sortFilterList, sortList } from './list.ts'
 
 import axios from '@data-fair/lib-node/axios.js'
 
@@ -48,9 +48,7 @@ export const getResource = async ({
   let downloadUrls: { url: string, format: string, service: string | undefined, description: string | undefined }[] = []
 
   for (const link of links) {
-    const formats = link.formats.filter((f: string) => {
-      return formatsList.includes(f)
-    })
+    const formats = sortFilterList(link.formats, formatsList)
     for (const format of formats) {
       if (link.service === 'WS' && extensionTable[format]) {
         downloadUrls.push({
