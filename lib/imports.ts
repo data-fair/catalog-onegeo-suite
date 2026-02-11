@@ -1,5 +1,5 @@
 import type { CatalogPlugin, GetResourceContext } from '@data-fair/types-catalogs'
-import type { OneGeoSuiteConfig, Link } from '#types'
+import type { Link, OneGeoSuiteConfig } from '#types'
 import { apiList, formatsList, sortList } from './list.ts'
 
 import axios from '@data-fair/lib-node/axios.js'
@@ -65,16 +65,30 @@ export const getResource = async ({
     })
     for (const format of formats) {
       if (link.service === 'WS' && extensionTable[format]) {
-        downloadUrls.push({ url: `${link.url}/${link.name}/all${extensionTable[format]}`, format, service: link.service, description: link.description })
+        downloadUrls.push({
+          url: `${link.url}/${link.name}/all${extensionTable[format]}`,
+          format,
+          service: link.service,
+          description: link.description
+        })
       } else if (link.service === undefined) {
         downloadUrls.push({ url: `${link.url}`, format, service: link.service, description: link.description })
       } else if (link.service === 'WFS' && wfsTable[format]) {
-        downloadUrls.push({ url: `${link.url}?SERVICE=WFS&VERSION=2.0.0&request=GetFeature&typename=${link.name}&outputFormat=${wfsTable[format]}`, format, service: link.service, description: link.description })
+        downloadUrls.push({
+          url: `${link.url}?SERVICE=WFS&VERSION=2.0.0&request=GetFeature&typename=${link.name}&outputFormat=${wfsTable[format]}`,
+          format,
+          service: link.service,
+          description: link.description
+        })
       }
     }
   }
-  downloadUrls = sortList(downloadUrls, apiList, (x: any) => { return x.service })
-  downloadUrls = sortList(downloadUrls, formatsList, (x: any) => { return x.format })
+  downloadUrls = sortList(downloadUrls, apiList, (x: any) => {
+    return x.service
+  })
+  downloadUrls = sortList(downloadUrls, formatsList, (x: any) => {
+    return x.format
+  })
 
   // Download the resource
   const fs = await import('node:fs')
@@ -155,10 +169,12 @@ export const getResource = async ({
     filePath,
     format: format!,
     frequency,
-    license: {
-      href: '',
-      title: catalog._source['metadata-fr'].license
-    },
+    license: catalog._source['metadata-fr'].license
+      ? {
+          href: '',
+          title: catalog._source['metadata-fr'].license
+        }
+      : undefined,
     keywords: catalog._source['metadata-fr'].keyword,
     updatedAt: catalog._source['metadata-fr'].lastUpdateDate ?? undefined,
     image: catalog._source['metadata-fr'].image.find((x: { type: string, url: string | null }) => {
