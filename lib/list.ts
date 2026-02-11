@@ -169,7 +169,7 @@ export const list = async ({
         id: `${catalog._source.uuid}`,
         title: catalog._source['metadata-fr'].title,
         description: sources[0].description,
-        format: formats.slice(0, 3).join(', ') + (formats.length ? '..' : ''),
+        format: formats.slice(0, 3).join(', ') + (formats.length > 3 ? '..' : ''),
         type: 'resource'
       } as ResourceList[number])
     }

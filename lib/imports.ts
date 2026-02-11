@@ -70,6 +70,11 @@ export const getResource = async ({
     }
   }
 
+  // check if url found
+  if (downloadUrls.length === 0) {
+    throw Error(`url not found for ${origin}`)
+  }
+
   // sort download url by importance (format and web service)
   downloadUrls = sortList(downloadUrls, apiList, (x: any) => {
     return x.service
