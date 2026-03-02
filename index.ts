@@ -3,10 +3,6 @@ import { configSchema, assertConfigValid, type OneGeoSuiteConfig } from '#types'
 import { type OneGeoCapabilities, capabilities } from './lib/capabilities.ts'
 import i18n from './lib/i18n.ts'
 
-// Since the plugin is very frequently imported, each function is imported on demand,
-// instead of loading the entire plugin.
-// This file should not contain any code, but only constants and dynamic imports of functions.
-
 const plugin: CatalogPlugin<OneGeoSuiteConfig, OneGeoCapabilities> = {
   async prepare (context) {
     const prepare = (await import('./lib/prepare.ts')).default
@@ -21,6 +17,16 @@ const plugin: CatalogPlugin<OneGeoSuiteConfig, OneGeoCapabilities> = {
   async getResource (context) {
     const { getResource } = await import('./lib/imports.ts')
     return getResource(context)
+  },
+
+  async publishDataset (context) {
+    const { publishDataset } = await import('./lib/publications.ts')
+    return publishDataset(context)
+  },
+
+  async deletePublication (context) {
+    const { deletePublication } = await import('./lib/publications.ts')
+    return deletePublication(context)
   },
 
   metadata: {

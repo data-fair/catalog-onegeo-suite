@@ -12,6 +12,11 @@ export const capabilities = [
 
   'import',
 
+  'createFolderInRoot',
+  'createResource',
+  'replaceFolder',
+  'replaceResource',
+  'requiresPublicationSite'
 ] satisfies Capability[]
 
 export type OneGeoCapabilities = typeof capabilities

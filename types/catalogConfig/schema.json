@@ -27,6 +27,64 @@
       "examples": [
         "https://demo.onegeosuite.fr"
       ]
+    },
+    "username": {
+      "type": "string",
+      "title": "Username",
+      "x-i18n-title": {
+        "fr": "Nom d'utilisateur"
+      }
+    },
+    "password": {
+      "type": "string",
+      "title": "Password",
+      "x-i18n-title": {
+        "fr": "Mot de passe"
+      },
+      "layout": {
+        "props": {
+          "type": "password",
+          "autocomplete": "suppress"
+        }
+      }
+    },
+    "usergroup": {
+      "type": "object",
+      "title": "User group (Organization) for publication",
+      "x-i18n-title": {
+        "fr": "Groupe d'utilisateurs (Organisation) de publication"
+      },
+      "description": "Select the user group or organization in which you have write access.",
+      "x-i18n-description": {
+        "fr": "Sélectionnez le groupe d'utilisateurs ou l'organisation dans lequel vous avez le droit d'écriture."
+      },
+      "required": [
+        "id",
+        "display_name"
+      ],
+      "properties": {
+        "id": {
+          "type": "integer"
+        },
+        "display_name": {
+          "type": "string"
+        }
+      },
+      "layout": {
+        "getItems": {
+          "url": "${parent.data.url}/fr/usergroup/user-groups/?drf_format=json",
+          "itemsResults": "data.results",
+          "itemTitle": "item.display_name",
+          "itemKey": "item.id",
+          "qSearchParam": "search"
+        },
+        "props": {
+          "placeholder": "Search...",
+          "x-i18n-placeholder": {
+            "fr": "Rechercher..."
+          }
+        }
+      }
     }
   }
 }
