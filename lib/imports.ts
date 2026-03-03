@@ -20,24 +20,28 @@ export const getResource = async ({
   tmpDir,
   log
 }: GetResourceContext<OneGeoSuiteConfig>): ReturnType<CatalogPlugin['getResource']> => {
-  const catalog = (await axios.get(new URL(`fr/indexer/elastic/_search/?q=uuid.keyword:${resourceId}%20AND%20is_metadata:true`, catalogConfig.url).href)).data.hits.hits[0]
+  const elasticUrl = `${catalogConfig.url}/indexer/elastic/_search/?q=uuid.keyword:${resourceId}%20AND%20is_metadata:true`
+  const catalog = (await axios.get(elasticUrl)).data.hits.hits[0]
   if (!catalog) throw Error(`resource not found for ${resourceId} in ${catalogConfig.url}`)
 
-  // get origine url
   const axiosPortail = axios.create({
     validateStatus: function (status) {
       return status >= 200 && status < 500
     }
   })
+
   let portail
-  for (const i of ['explorer/fr', 'portail/fr']) {
-    if ((await axiosPortail.get(new URL('explorer/fr', catalogConfig.url).href)).status === 200) {
+  const baseUrl = catalogConfig.url.replace(/\/fr$/, '')
+
+  for (const i of ['/explorer/fr', '/portail/fr']) {
+    const testUrl = `${baseUrl}${i}`
+    if ((await axiosPortail.get(testUrl)).status === 200) {
       portail = i
       break
     }
   }
-  const origin = portail ? `${catalogConfig.url}/${portail}/jeux-de-donnees/${catalog._source.slug}/info` : ''
 
+  const origin = portail ? `${baseUrl}${portail}/jeux-de-donnees/${catalog._source.slug}/info` : ''
   const links: Link[] = catalog._source['metadata-fr'].link.filter((x: Link) => {
     return apiList.includes(x.service) && x.formats.find((y: string) => {
       return formatsList.includes(y)
@@ -160,7 +164,7 @@ export const getResource = async ({
     id: resourceId,
     slug: catalog._source.slug,
     title: catalog._source['metadata-fr'].title,
-    description: description ?? catalog._source['metadata-fr'].abstratc,
+    description: description ?? catalog._source['metadata-fr'].abstract,
     filePath,
     format: format!,
     frequency,
@@ -172,7 +176,7 @@ export const getResource = async ({
       : undefined,
     keywords: catalog._source['metadata-fr'].keyword,
     updatedAt: catalog._source['metadata-fr'].lastUpdateDate ?? undefined,
-    image: catalog._source['metadata-fr'].image.find((x: { type: string, url: string | null }) => {
+    image: catalog._source['metadata-fr'].image?.find((x: { type: string, url: string | null }) => {
       return x.type === 'thumbnail' && !!x.url
     })?.url ?? undefined,
     origin

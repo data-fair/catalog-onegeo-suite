@@ -1,7 +1,8 @@
-import type { CatalogPlugin, ListContext } from '@data-fair/types-catalogs'
+import type { CatalogPlugin, Folder, ListContext } from '@data-fair/types-catalogs'
 import type { Link, OneGeoSuiteConfig } from '#types'
 import type { OneGeoCapabilities } from './capabilities.ts'
 import axios from '@data-fair/lib-node/axios.js'
+import { createOneGeoClient } from './onegeo-client.ts'
 
 type ResourceList = Awaited<ReturnType<CatalogPlugin['list']>>['results']
 
@@ -142,19 +143,81 @@ const countReq = (input: string = '*') => {
 
 export const list = async ({
   catalogConfig,
+  secrets,
   params
 }: ListContext<OneGeoSuiteConfig, OneGeoCapabilities>): ReturnType<CatalogPlugin['list']> => {
   const url = catalogConfig.url
+  if (params.action) { // Publication flow
+    if (!secrets?.username || !secrets?.password) {
+      throw new Error('Un nom d\'utilisateur et un mot de passe sont requis pour lister les jeux de données en vue d\'une publication')
+    }
+    const client = createOneGeoClient(url, secrets)
+
+    if (params.currentFolderId) {
+      const response = await client.request({
+        method: 'GET',
+        url: '/resource/resource-dataset/',
+        params: {
+          dataset_id: params.currentFolderId
+        }
+      })
+
+      const liaisons = response.data.results || response.data
+
+      const resources = liaisons.map((liaison: any) => ({
+        id: `${params.currentFolderId}:${liaison.resource.id}`,
+        title: liaison.resource?.display_name || liaison.resource?.codename || 'Ressource',
+        type: 'resource'
+      }))
+
+      return {
+        count: resources.length,
+        results: resources,
+        path: [{
+          id: String(params.currentFolderId),
+          title: 'Jeu de données',
+          type: 'folder'
+        }]
+      }
+    }
+
+    const requestParams: Record<string, any> = {
+      page: params.page || 1,
+      page_size: params.size || 20
+    }
+    if (params.q && params.q !== '*') requestParams.search = params.q
+
+    const response = await client.request({
+      method: 'GET',
+      url: '/dataset/datasets/',
+      params: requestParams
+    })
+    const datasets = response.data.results || response.data
+    const count = response.data.count || datasets.length
+
+    const folders = datasets.map((ds: any) => ({
+      id: String(ds.id),
+      title: ds.display_name || ds.title || ds.codename,
+      type: 'folder',
+      updatedAt: ds.last_update_date || ds.last_revision_date
+    } as Folder))
+
+    return {
+      count,
+      results: folders,
+      path: []
+    }
+  }
   const listResources = async (params: Record<any, any>) => {
     // get resources
     let resources
     try {
-      resources = (await axios.post(new URL('fr/indexer/elastic/_search/', url).href, baseReqDataset(params.q || '*', params.size, params.page))).data.hits.hits
+      resources = (await axios.post(new URL('indexer/elastic/_search/', url).href, baseReqDataset(params.q || '*', params.size, params.page))).data.hits.hits
     } catch (e) {
       // @ts-ignore
       throw Error(`Axios error: ${e?.status ?? ''} ${e?.message}`)
     }
-    const count = (await axios.post(new URL('fr/indexer/elastic/_search/', url).href, countReq(params.q))).data.aggregations.unique_datasets.value
+    const count = (await axios.post(new URL('indexer/elastic/_search/', url).href, countReq(params.q))).data.aggregations.unique_datasets.value
     const res = []
 
     for (const catalog of resources) {

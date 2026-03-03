@@ -84,7 +84,7 @@ describe('catalog-OneGeoSuite', () => {
 
     // Mock d'un jeu de données Data Fair
     const mockDataset = {
-      id: 'test-dataset-002',
+      id: 'test-dataset-003',
       title: 'Mon jeu de données de test unitaire',
       description: 'Ceci est un test automatisé depuis Data Fair',
       public: true,
