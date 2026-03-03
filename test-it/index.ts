@@ -9,7 +9,7 @@ import plugin from '../index.ts'
 const catalogPlugin: CatalogPlugin = plugin as CatalogPlugin
 
 // Config pour les tests de lecture (list, getResource)
-const catalogConfig = { url: 'https://www.datasud.fr' }
+const catalogConfig = { url: 'https://www.datasud.fr/fr/' }
 const tmpDir = './data/test/downloads'
 const getResourceParams = {
   catalogConfig,
@@ -70,7 +70,7 @@ describe('catalog-OneGeoSuite', () => {
 
   describe('publication to local OneGeoSuite', async () => {
     const pubCatalogConfig = {
-      url: 'http://localhost:8089/fr',
+      url: 'http://localhost:8089/fr/',
       usergroup: {
         id: 10,
         display_name: 'Organisation Locale de test'

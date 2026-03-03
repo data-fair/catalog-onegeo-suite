@@ -20,7 +20,7 @@ export const getResource = async ({
   tmpDir,
   log
 }: GetResourceContext<OneGeoSuiteConfig>): ReturnType<CatalogPlugin['getResource']> => {
-  const elasticUrl = `${catalogConfig.url}/indexer/elastic/_search/?q=uuid.keyword:${resourceId}%20AND%20is_metadata:true`
+  const elasticUrl = `${catalogConfig.url}indexer/elastic/_search/?q=uuid.keyword:${resourceId}%20AND%20is_metadata:true`
   const catalog = (await axios.get(elasticUrl)).data.hits.hits[0]
   if (!catalog) throw Error(`resource not found for ${resourceId} in ${catalogConfig.url}`)
 

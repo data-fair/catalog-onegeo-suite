@@ -156,7 +156,7 @@ export const list = async ({
     if (params.currentFolderId) {
       const response = await client.request({
         method: 'GET',
-        url: '/resource/resource-dataset/',
+        url: 'resource/resource-dataset/',
         params: {
           dataset_id: params.currentFolderId
         }
@@ -189,7 +189,7 @@ export const list = async ({
 
     const response = await client.request({
       method: 'GET',
-      url: '/dataset/datasets/',
+      url: 'dataset/datasets/',
       params: requestParams
     })
     const datasets = response.data.results || response.data

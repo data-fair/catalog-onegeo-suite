@@ -33,7 +33,10 @@ export default async ({ catalogConfig, capabilities, secrets }: PrepareContext<O
   }
 
   if (!catalogConfig.url.includes('/fr')) {
-    catalogConfig.url = catalogConfig.url.replace(/\/?$/, '/fr')
+    catalogConfig.url = catalogConfig.url.replace(/\/?$/, '/fr/')
+  }
+  if (!catalogConfig.url.endsWith('/')) {
+    catalogConfig.url += '/'
   }
   capabilities = capabilities.filter(c => c !== 'publication' as any)
   if (!capabilities.includes('requiresPublicationSite')) capabilities.push('requiresPublicationSite')

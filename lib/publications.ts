@@ -57,7 +57,7 @@ const createOrUpdateDataset = async ({ catalogConfig, dataset, publication, publ
     try {
       const res = await client.request({
         method: 'PATCH',
-        url: `/dataset/datasets/${publication.remoteFolder.id}/`,
+        url: `dataset/datasets/${publication.remoteFolder.id}/`,
         data: onegeoDataset
       })
       const finalDatasetId = res.data.id || publication.remoteFolder.id
@@ -78,7 +78,7 @@ const createOrUpdateDataset = async ({ catalogConfig, dataset, publication, publ
     try {
       const res = await client.request({
         method: 'POST',
-        url: '/dataset/datasets/',
+        url: 'dataset/datasets/',
         data: onegeoDataset
       })
       const finalDatasetId = res.data.id
@@ -104,7 +104,7 @@ const deleteDataset = async ({ catalogConfig, folderId, log }: DeletePublication
     await log.step(`Suppression du jeu de données ${folderId}`)
     await client.request({
       method: 'DELETE',
-      url: `/dataset/datasets/${folderId}/`
+      url: `dataset/datasets/${folderId}/`
     })
     await log.info(`Jeu de données ${folderId} supprimé avec succès`)
   } catch (e: any) {
@@ -144,7 +144,7 @@ const createOrUpdateResource = async ({ catalogConfig, dataset, publication, pub
       await log.info('1. Création de la coquille Ressource')
       const resResource = await client.request({
         method: 'POST',
-        url: '/resource/resources/',
+        url: 'resource/resources/',
         data: {
           codename: resourceSlug,
           display_name: dataset.title,
@@ -156,7 +156,7 @@ const createOrUpdateResource = async ({ catalogConfig, dataset, publication, pub
       await log.info(`2. Création du lien attaché à la ressource ${actualResourceId}`)
       await client.request({
         method: 'POST',
-        url: '/resource/href/',
+        url: 'resource/href/',
         data: {
           href: exportUrl,
           resource_id: parseInt(actualResourceId, 10)
@@ -166,7 +166,7 @@ const createOrUpdateResource = async ({ catalogConfig, dataset, publication, pub
       await log.info('3. Liaison de la ressource au jeu de données')
       await client.request({
         method: 'POST',
-        url: '/resource/resource-dataset/',
+        url: 'resource/resource-dataset/',
         data: {
           resource_id: parseInt(actualResourceId, 10),
           dataset_id: datasetId,
@@ -178,7 +178,7 @@ const createOrUpdateResource = async ({ catalogConfig, dataset, publication, pub
       await log.info(`Mise à jour de la ressource ${actualResourceId}`)
       await client.request({
         method: 'PATCH',
-        url: `/resource/resources/${actualResourceId}/`,
+        url: `resource/resources/${actualResourceId}/`,
         data: {
           display_name: dataset.title
         }
@@ -208,7 +208,7 @@ const deleteResource = async ({ resourceId, log }: DeletePublicationContext<OneG
     await log.step(`Suppression de la ressource ${actualResourceId}`)
     await client.request({
       method: 'DELETE',
-      url: `/resource/resources/${actualResourceId}/`
+      url: `resource/resources/${actualResourceId}/`
     })
     await log.info(`Ressource ${actualResourceId} supprimée avec succès`)
   } catch (e: any) {
@@ -230,7 +230,7 @@ const addDownloadLink = async (client: OneGeoClient, datasetId: number, dataset:
   try {
     const resShell = await client.request({
       method: 'POST',
-      url: '/resource/resources/',
+      url: 'resource/resources/',
       data: {
         codename: `${dataset.id}-dl`.substring(0, 100),
         display_name: `Télécharger les données (${fileFormat.toUpperCase()})`,
@@ -241,7 +241,7 @@ const addDownloadLink = async (client: OneGeoClient, datasetId: number, dataset:
 
     await client.request({
       method: 'POST',
-      url: '/resource/href/',
+      url: 'resource/href/',
       data: {
         href: downloadUrl,
         resource_id: resourceId
@@ -250,7 +250,7 @@ const addDownloadLink = async (client: OneGeoClient, datasetId: number, dataset:
 
     await client.request({
       method: 'POST',
-      url: '/resource/resource-dataset/',
+      url: 'resource/resource-dataset/',
       data: {
         resource_id: resourceId,
         dataset_id: datasetId,
