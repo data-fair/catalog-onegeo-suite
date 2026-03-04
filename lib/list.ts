@@ -212,12 +212,12 @@ export const list = async ({
     // get resources
     let resources
     try {
-      resources = (await axios.post(new URL('indexer/elastic/_search/', url).href, baseReqDataset(params.q || '*', params.size, params.page))).data.hits.hits
+      resources = (await axios.post(new URL('fr/indexer/elastic/_search/', url).href, baseReqDataset(params.q || '*', params.size, params.page))).data.hits.hits
     } catch (e) {
       // @ts-ignore
       throw Error(`Axios error: ${e?.status ?? ''} ${e?.message}`)
     }
-    const count = (await axios.post(new URL('indexer/elastic/_search/', url).href, countReq(params.q))).data.aggregations.unique_datasets.value
+    const count = (await axios.post(new URL('fr/indexer/elastic/_search/', url).href, countReq(params.q))).data.aggregations.unique_datasets.value
     const res = []
 
     for (const catalog of resources) {

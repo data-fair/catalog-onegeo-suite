@@ -32,12 +32,6 @@ export default async ({ catalogConfig, capabilities, secrets }: PrepareContext<O
     capabilities = capabilities.filter(c => !publicationCapabilities.includes(c as any))
   }
 
-  if (!catalogConfig.url.includes('/fr')) {
-    catalogConfig.url = catalogConfig.url.replace(/\/?$/, '/fr/')
-  }
-  if (!catalogConfig.url.endsWith('/')) {
-    catalogConfig.url += '/'
-  }
   capabilities = capabilities.filter(c => c !== 'publication' as any)
   if (!capabilities.includes('requiresPublicationSite')) capabilities.push('requiresPublicationSite')
   try {
@@ -45,12 +39,12 @@ export default async ({ catalogConfig, capabilities, secrets }: PrepareContext<O
       if (catalogConfig.usergroup?.id === undefined) {
         throw new Error('L\'organisation est requise pour publier sur OneGeo Suite. Veuillez ajouter une organisation dans la configuration du catalogue.')
       }
-      await axios.post(`${catalogConfig.url}/login/signin/`, {
+      await axios.post(`${catalogConfig.url}login/signin/`, {
         username: secrets.username,
         password: secrets.password
       })
     } else {
-      await axios.get(`${catalogConfig.url}/dataset/datasets/`)
+      await axios.get(`${catalogConfig.url}`)
     }
   } catch (error: any) {
     console.error(`Error connecting to OneGeoSuite API at ${catalogConfig.url}:`, error.message)
