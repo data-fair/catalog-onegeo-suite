@@ -88,7 +88,7 @@ const createOrUpdateDataset = async ({ catalogConfig, dataset, publication, publ
         url: res.data.detail_url || `${catalogConfig.url}/dataset/${res.data.id}`
       }
       await log.info(`Nouveau jeu de données créé avec l'ID : ${res.data.id}`)
-
+      await addPageLink(client, finalDatasetId, dataset, catalogConfig, publicationSite, log)
       await addDownloadLink(client, finalDatasetId, dataset, catalogConfig, publicationSite, log)
     } catch (error: any) {
       throw new Error(`Erreur lors de la création sur OneGeo Suite: ${error.response?.data ? JSON.stringify(error.response.data) : error.message}`)
@@ -118,15 +118,27 @@ const deleteDataset = async ({ catalogConfig, folderId, log }: DeletePublication
 
 const createOrUpdateResource = async ({ catalogConfig, dataset, publication, publicationSite, log }: PublishDatasetContext<OneGeoSuiteConfig, OneGeoCapabilities>, client: OneGeoClient): Promise<Publication> => {
   await log.step('Préparation de la ressource pour publication sur OneGeo Suite')
-  if (!publication.remoteFolder || !publication.remoteFolder.id) {
+  let datasetIdString = publication.remoteFolder?.id
+
+  if (!datasetIdString && publication.remoteResource?.id?.includes(':')) {
+    datasetIdString = publication.remoteResource.id.split(':')[0]
+  }
+
+  if (!datasetIdString) {
     throw new Error('L\'ID du jeu de données parent est requis pour publier une ressource')
   }
   if (catalogConfig?.usergroup?.id === undefined) {
     throw new Error('L\'organisation est requise pour publier une ressource.')
   }
-  publication.remoteFolder.id = String(publication.remoteFolder.id).split(':').pop() || String(publication.remoteFolder.id)
-  const datasetIdString = publication.remoteFolder.id
-  const datasetId = parseInt(publication.remoteFolder.id, 10)
+
+  datasetIdString = String(datasetIdString)
+  const datasetId = parseInt(datasetIdString, 10)
+
+  if (!publication.remoteFolder) {
+    publication.remoteFolder = { id: datasetIdString }
+  } else {
+    publication.remoteFolder.id = datasetIdString
+  }
   const usergroupId = catalogConfig.usergroup.id
   const exportUrl = microTemplate(publicationSite.datasetUrlTemplate || '', { id: dataset.id, slug: dataset.slug })
   const resourceSlug = dataset.id.replace(/[^a-zA-Z0-9_-]/g, '-').substring(0, 90) + '-res'
@@ -201,8 +213,6 @@ const deleteResource = async ({ resourceId, log }: DeletePublicationContext<OneG
     if (!resourceId) {
       throw new Error('L\'ID de la ressource est requis pour la suppression')
     }
-
-    // Extraction de l'ID réel si Data Fair envoie un ID composite
     const actualResourceId = resourceId.includes(':') ? resourceId.split(':')[1] : resourceId
 
     await log.step(`Suppression de la ressource ${actualResourceId}`)
@@ -225,7 +235,7 @@ const addDownloadLink = async (client: OneGeoClient, datasetId: number, dataset:
   await log.info('Ajout du lien de téléchargement direct...')
   const useSlug = !!(publicationSite.datasetUrlTemplate && publicationSite.datasetUrlTemplate.includes('slug'))
   const downloadUrl = `${publicationSite.url}/data-fair/api/v1/datasets/${useSlug ? dataset.slug : dataset.id}/raw`
-  const fileFormat = dataset.originalFile.name.split('.').pop()
+  const fileExtension = dataset.originalFile.name.split('.').pop().toLowerCase()
 
   try {
     const resShell = await client.request({
@@ -233,21 +243,54 @@ const addDownloadLink = async (client: OneGeoClient, datasetId: number, dataset:
       url: 'resource/resources/',
       data: {
         codename: `${dataset.id}-dl`.substring(0, 100),
-        display_name: `Télécharger les données (${fileFormat.toUpperCase()})`,
+        display_name: `Télécharger les données (${fileExtension.toUpperCase()})`,
         usergroup_id: catalogConfig.usergroup.id
       }
     })
     const resourceId = resShell.data.id
 
-    await client.request({
-      method: 'POST',
-      url: 'resource/href/',
-      data: {
-        href: downloadUrl,
-        resource_id: resourceId
+    let dataformatId: number | null = null
+    try {
+      const formatRes = await client.request({
+        method: 'GET',
+        url: '/resource/data-format/',
+        params: { search: fileExtension }
+      })
+      const formats = formatRes.data.results || formatRes.data
+      if (formats && formats.length > 0) {
+        const exactMatch = formats.find((f: any) =>
+          f.codename && f.codename.toLowerCase() === fileExtension
+        )
+        if (exactMatch) {
+          dataformatId = exactMatch.id
+        } else {
+          dataformatId = formats[0].id
+        }
       }
-    })
+    } catch (e) {
+    }
 
+    if (dataformatId) {
+      await client.request({
+        method: 'POST',
+        url: 'resource/file-download/',
+        data: {
+          resource_id: resourceId,
+          dataformat_id: dataformatId,
+          href: downloadUrl
+        }
+      })
+    } else {
+      await log.warning(`Format '${fileExtension}' non trouvé dans OneGeo, utilisation d'un lien générique`)
+      await client.request({
+        method: 'POST',
+        url: 'resource/href/',
+        data: {
+          href: downloadUrl,
+          resource_id: resourceId
+        }
+      })
+    }
     await client.request({
       method: 'POST',
       url: 'resource/resource-dataset/',
@@ -258,8 +301,46 @@ const addDownloadLink = async (client: OneGeoClient, datasetId: number, dataset:
         type: 2
       }
     })
-    await log.info('Lien de téléchargement ajouté avec succès')
   } catch (error: any) {
-    await log.warning(`Impossible d'ajouter le lien de téléchargement : ${error.message}`)
+    await log.warning(`Impossible d'ajouter le lien de téléchargement : ${error.response?.data ? JSON.stringify(error.response.data) : error.message}`)
+  }
+}
+
+const addPageLink = async (client: OneGeoClient, datasetId: number, dataset: any, catalogConfig: any, publicationSite: any, log: any) => {
+  await log.info('Ajout du lien vers la page du jeu de données...')
+  const exportUrl = microTemplate(publicationSite.datasetUrlTemplate || '', { id: dataset.id, slug: dataset.slug })
+  const resourceSlug = dataset.id.replace(/[^a-zA-Z0-9_-]/g, '-').substring(0, 90) + '-page'
+
+  try {
+    const resShell = await client.request({
+      method: 'POST',
+      url: 'resource/resources/',
+      data: {
+        codename: resourceSlug,
+        display_name: 'Explorer les données',
+        usergroup_id: catalogConfig.usergroup.id
+      }
+    })
+    const resourceId = resShell.data.id
+    await client.request({
+      method: 'POST',
+      url: 'resource/href/',
+      data: {
+        href: exportUrl,
+        resource_id: resourceId
+      }
+    })
+    await client.request({
+      method: 'POST',
+      url: 'resource/resource-dataset/',
+      data: {
+        resource_id: resourceId,
+        dataset_id: datasetId,
+        publish: true,
+        type: 1
+      }
+    })
+  } catch (error: any) {
+    await log.warning(`Impossible d'ajouter le lien de consultation : ${error.response?.data ? JSON.stringify(error.response.data) : error.message}`)
   }
 }
