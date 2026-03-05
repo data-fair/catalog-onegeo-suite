@@ -3,3 +3,5 @@ node_modules/
 .type/
 .env
 *.tgz
+.opencode/
+AGENTS.md
