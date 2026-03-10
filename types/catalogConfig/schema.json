@@ -33,6 +33,11 @@
       "title": "Username",
       "x-i18n-title": {
         "fr": "Nom d'utilisateur"
+      },
+      "layout": {
+        "props": {
+          "autocomplete": "suppress"
+        }
       }
     },
     "password": {

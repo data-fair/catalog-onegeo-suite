@@ -39,7 +39,7 @@ export default async ({ catalogConfig, capabilities, secrets }: PrepareContext<O
       if (catalogConfig.usergroup?.id === undefined) {
         throw new Error('L\'organisation est requise pour publier sur OneGeo Suite. Veuillez ajouter une organisation dans la configuration du catalogue.')
       }
-      await axios.post(`${catalogConfig.url}login/signin/`, {
+      await axios.post(`${catalogConfig.url}/login/signin/`, {
         username: secrets.username,
         password: secrets.password
       })
