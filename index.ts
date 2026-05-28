@@ -31,7 +31,6 @@ const plugin: CatalogPlugin<OneGeoSuiteConfig, OneGeoCapabilities> = {
 
   metadata: {
     title: 'OneGeoSuite',
-    thumbnailPath: './lib/resources/thumbnail.svg',
     i18n,
     capabilities
   },
