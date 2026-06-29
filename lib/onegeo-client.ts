@@ -13,7 +13,7 @@ export const createOneGeoClient = (baseUrl: string, secrets: any) => {
       })
       token = response.data.token
     } catch (error: any) {
-      throw new Error(`Échec de l'authentification OneGeo: ${error.message}`)
+      throw new Error(`OneGeo authentication failed: ${error.message}`)
     }
   }
 

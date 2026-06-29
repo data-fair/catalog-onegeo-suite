@@ -149,7 +149,7 @@ export const list = async ({
   const url = catalogConfig.url
   if (params.action) { // Publication flow
     if (!secrets?.username || !secrets?.password) {
-      throw new Error('Un nom d\'utilisateur et un mot de passe sont requis pour lister les jeux de données en vue d\'une publication')
+      throw new Error('A username and password are required to list datasets for publication')
     }
     const client = createOneGeoClient(url, secrets)
 

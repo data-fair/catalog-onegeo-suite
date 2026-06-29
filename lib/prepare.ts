@@ -37,7 +37,7 @@ export default async ({ catalogConfig, capabilities, secrets }: PrepareContext<O
   try {
     if (secrets?.username && secrets?.password) {
       if (catalogConfig.usergroup?.id === undefined) {
-        throw new Error('L\'organisation est requise pour publier sur OneGeo Suite. Veuillez ajouter une organisation dans la configuration du catalogue.')
+        throw new Error('An organization is required to publish to OneGeo Suite. Please add an organization in the catalog configuration.')
       }
       await axios.post(`${catalogConfig.url}/login/signin/`, {
         username: secrets.username,
@@ -49,9 +49,9 @@ export default async ({ catalogConfig, capabilities, secrets }: PrepareContext<O
   } catch (error: any) {
     console.error(`Error connecting to OneGeoSuite API at ${catalogConfig.url}:`, error.message)
     if (error.response?.status === 401 || error.response?.status === 403) {
-      throw new Error('Nom d\'utilisateur ou mot de passe invalide sur OneGeo Suite.')
+      throw new Error('Invalid username or password on OneGeo Suite.')
     }
-    throw new Error(`Impossible de se connecter à l'API OneGeo Suite (${catalogConfig.url}). Vérifiez l'URL et votre connexion réseau.`)
+    throw new Error(`Unable to connect to the OneGeo Suite API (${catalogConfig.url}). Check the URL and your network connection.`)
   }
 
   return {

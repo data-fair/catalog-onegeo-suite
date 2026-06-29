@@ -8,7 +8,7 @@ import { createOneGeoClient } from './onegeo-client.ts'
 
 export const publishDataset = async (context: PublishDatasetContext<OneGeoSuiteConfig, OneGeoCapabilities>): ReturnType<CatalogPlugin['publishDataset']> => {
   if (!context.secrets?.username || !context.secrets?.password) {
-    throw new Error('Un nom d\'utilisateur et un mot de passe sont requis pour publier sur OneGeo Suite')
+    throw new Error('A username and password are required to publish to OneGeo Suite')
   }
 
   const oneGeoClient = createOneGeoClient(context.catalogConfig.url, context.secrets)
@@ -22,7 +22,7 @@ export const publishDataset = async (context: PublishDatasetContext<OneGeoSuiteC
 
 export const deletePublication = async (context: DeletePublicationContext<OneGeoSuiteConfig>): ReturnType<CatalogPlugin['deletePublication']> => {
   if (!context.secrets?.username || !context.secrets?.password) {
-    throw new Error('Un nom d\'utilisateur et un mot de passe sont requis pour supprimer une publication sur OneGeo Suite')
+    throw new Error('A username and password are required to delete a publication on OneGeo Suite')
   }
 
   const oneGeoClient = createOneGeoClient(context.catalogConfig.url, context.secrets)
@@ -32,13 +32,13 @@ export const deletePublication = async (context: DeletePublicationContext<OneGeo
 }
 
 const createOrUpdateDataset = async ({ catalogConfig, dataset, publication, publicationSite, log }: PublishDatasetContext<OneGeoSuiteConfig, OneGeoCapabilities>, client: OneGeoClient): Promise<Publication> => {
-  await log.step('Préparation du jeu de données pour publication/mise à jour sur OneGeo Suite')
+  await log.step('Preparing the dataset for publication/update on OneGeo Suite')
 
-  await log.step('Construction des métadonnées OneGeo Suite')
+  await log.step('Building OneGeo Suite metadata')
   const slug = dataset.id.replace(/[^a-zA-Z0-9_-]/g, '-').substring(0, 100)
   if (catalogConfig?.usergroup?.id === undefined) {
-    await log.warning('Aucune organisation spécifiée dans la configuration du catalogue.')
-    throw new Error('L\'organisation est requise pour publier sur OneGeo Suite. Veuillez ajouter une organisation dans la configuration du catalogue.')
+    await log.warning('No organization specified in the catalog configuration.')
+    throw new Error('An organization is required to publish to OneGeo Suite. Please add an organization in the catalog configuration.')
   }
   const now = new Date().toISOString().split('T')[0]
   const onegeoDataset: Record<string, any> = {
@@ -53,7 +53,7 @@ const createOrUpdateDataset = async ({ catalogConfig, dataset, publication, publ
   }
 
   if (publication.remoteFolder) {
-    await log.step(`Mise à jour du jeu de données distant existant : ${publication.remoteFolder.id}`)
+    await log.step(`Updating existing remote dataset: ${publication.remoteFolder.id}`)
     try {
       const res = await client.request({
         method: 'PATCH',
@@ -66,15 +66,15 @@ const createOrUpdateDataset = async ({ catalogConfig, dataset, publication, publ
         title: res.data.display_name || onegeoDataset.display_name,
         url: res.data.detail_url || `${catalogConfig.url}/dataset/${publication.remoteFolder.id}`
       }
-      await log.info('Mise à jour réussie sur OneGeo Suite')
+      await log.info('Update successful on OneGeo Suite')
     } catch (error: any) {
       if (error.response?.status === 404) {
-        throw new Error(`Le jeu de données distant ${publication.remoteFolder.id} n'existe plus sur OneGeo Suite.`)
+        throw new Error(`The remote dataset ${publication.remoteFolder.id} no longer exists on OneGeo Suite.`)
       }
-      throw new Error(`Erreur lors de la mise à jour: ${error.message}`)
+      throw new Error(`Error during update: ${error.message}`)
     }
   } else {
-    await log.step('Création d\'un nouveau jeu de données sur OneGeo Suite')
+    await log.step('Creating a new dataset on OneGeo Suite')
     try {
       const res = await client.request({
         method: 'POST',
@@ -87,37 +87,37 @@ const createOrUpdateDataset = async ({ catalogConfig, dataset, publication, publ
         title: res.data.display_name,
         url: res.data.detail_url || `${catalogConfig.url}/dataset/${res.data.id}`
       }
-      await log.info(`Nouveau jeu de données créé avec l'ID : ${res.data.id}`)
+      await log.info(`New dataset created with ID: ${res.data.id}`)
       await addPageLink(client, finalDatasetId, dataset, catalogConfig, publicationSite, log)
       await addDownloadLink(client, finalDatasetId, dataset, catalogConfig, publicationSite, log)
     } catch (error: any) {
-      throw new Error(`Erreur lors de la création sur OneGeo Suite: ${error.response?.data ? JSON.stringify(error.response.data) : error.message}`)
+      throw new Error(`Error during creation on OneGeo Suite: ${error.response?.data ? JSON.stringify(error.response.data) : error.message}`)
     }
   }
 
-  await log.info('Publication du Dataset terminée avec succès')
+  await log.info('Dataset publication completed successfully')
   return publication
 }
 
 const deleteDataset = async ({ catalogConfig, folderId, log }: DeletePublicationContext<OneGeoSuiteConfig>, client: OneGeoClient): Promise<void> => {
   try {
-    await log.step(`Suppression du jeu de données ${folderId}`)
+    await log.step(`Deleting dataset ${folderId}`)
     await client.request({
       method: 'DELETE',
       url: `dataset/datasets/${folderId}/`
     })
-    await log.info(`Jeu de données ${folderId} supprimé avec succès`)
+    await log.info(`Dataset ${folderId} deleted successfully`)
   } catch (e: any) {
-    await log.error(`Erreur lors de la suppression du jeu de données : ${e.message}`)
+    await log.error(`Error deleting dataset: ${e.message}`)
     if (![404, 410].includes(e.response?.status)) {
-      throw new Error(`Erreur lors de la suppression sur ${catalogConfig.url} : ${e.message}`)
+      throw new Error(`Error during deletion on ${catalogConfig.url}: ${e.message}`)
     }
-    await log.warning(`Le jeu de données ${folderId} n'existe pas ou a déjà été supprimé (code ${e.response?.status})`)
+    await log.warning(`Dataset ${folderId} does not exist or has already been deleted (code ${e.response?.status})`)
   }
 }
 
 const createOrUpdateResource = async ({ catalogConfig, dataset, publication, publicationSite, log }: PublishDatasetContext<OneGeoSuiteConfig, OneGeoCapabilities>, client: OneGeoClient): Promise<Publication> => {
-  await log.step('Préparation de la ressource pour publication sur OneGeo Suite')
+  await log.step('Preparing the resource for publication on OneGeo Suite')
   let datasetIdString = publication.remoteFolder?.id
 
   if (!datasetIdString && publication.remoteResource?.id?.includes(':')) {
@@ -125,10 +125,10 @@ const createOrUpdateResource = async ({ catalogConfig, dataset, publication, pub
   }
 
   if (!datasetIdString) {
-    throw new Error('L\'ID du jeu de données parent est requis pour publier une ressource')
+    throw new Error('The parent dataset ID is required to publish a resource')
   }
   if (catalogConfig?.usergroup?.id === undefined) {
-    throw new Error('L\'organisation est requise pour publier une ressource.')
+    throw new Error('An organization is required to publish a resource.')
   }
 
   datasetIdString = String(datasetIdString)
@@ -153,7 +153,7 @@ const createOrUpdateResource = async ({ catalogConfig, dataset, publication, pub
     }
 
     if (!actualResourceId) {
-      await log.info('1. Création de la coquille Ressource')
+      await log.info('1. Creating the resource shell')
       const resResource = await client.request({
         method: 'POST',
         url: 'resource/resources/',
@@ -165,7 +165,7 @@ const createOrUpdateResource = async ({ catalogConfig, dataset, publication, pub
       })
       actualResourceId = String(resResource.data.id)
 
-      await log.info(`2. Création du lien attaché à la ressource ${actualResourceId}`)
+      await log.info(`2. Creating the link attached to resource ${actualResourceId}`)
       await client.request({
         method: 'POST',
         url: 'resource/href/',
@@ -175,7 +175,7 @@ const createOrUpdateResource = async ({ catalogConfig, dataset, publication, pub
         }
       })
 
-      await log.info('3. Liaison de la ressource au jeu de données')
+      await log.info('3. Linking the resource to the dataset')
       await client.request({
         method: 'POST',
         url: 'resource/resource-dataset/',
@@ -187,7 +187,7 @@ const createOrUpdateResource = async ({ catalogConfig, dataset, publication, pub
         }
       })
     } else {
-      await log.info(`Mise à jour de la ressource ${actualResourceId}`)
+      await log.info(`Updating resource ${actualResourceId}`)
       await client.request({
         method: 'PATCH',
         url: `resource/resources/${actualResourceId}/`,
@@ -201,38 +201,38 @@ const createOrUpdateResource = async ({ catalogConfig, dataset, publication, pub
       title: `${dataset.title} - Lien externe`,
       url: exportUrl
     }
-    await log.info('Publication de la ressource terminée avec succès')
+    await log.info('Resource publication completed successfully')
     return publication
   } catch (error: any) {
-    throw new Error(`Erreur lors de la création de la ressource: ${error.response?.data ? JSON.stringify(error.response.data) : error.message}`)
+    throw new Error(`Error creating the resource: ${error.response?.data ? JSON.stringify(error.response.data) : error.message}`)
   }
 }
 
 const deleteResource = async ({ resourceId, log }: DeletePublicationContext<OneGeoSuiteConfig>, client: OneGeoClient): Promise<void> => {
   try {
     if (!resourceId) {
-      throw new Error('L\'ID de la ressource est requis pour la suppression')
+      throw new Error('The resource ID is required for deletion')
     }
     const actualResourceId = resourceId.includes(':') ? resourceId.split(':')[1] : resourceId
 
-    await log.step(`Suppression de la ressource ${actualResourceId}`)
+    await log.step(`Deleting resource ${actualResourceId}`)
     await client.request({
       method: 'DELETE',
       url: `resource/resources/${actualResourceId}/`
     })
-    await log.info(`Ressource ${actualResourceId} supprimée avec succès`)
+    await log.info(`Resource ${actualResourceId} deleted successfully`)
   } catch (e: any) {
     if (![404, 410].includes(e.response?.status)) {
-      throw new Error(`Erreur lors de la suppression de la ressource : ${e.message}`)
+      throw new Error(`Error deleting the resource: ${e.message}`)
     }
-    await log.warning(`La ressource ${resourceId} n'existe pas ou a déjà été supprimée`)
+    await log.warning(`Resource ${resourceId} does not exist or has already been deleted`)
   }
 }
 
 const addDownloadLink = async (client: OneGeoClient, datasetId: number, dataset: any, catalogConfig: any, publicationSite: any, log: any) => {
   if (!dataset.originalFile) return
 
-  await log.info('Ajout du lien de téléchargement direct...')
+  await log.info('Adding direct download link...')
   const useSlug = !!(publicationSite.datasetUrlTemplate && publicationSite.datasetUrlTemplate.includes('slug'))
   const downloadUrl = `${publicationSite.url}/data-fair/api/v1/datasets/${useSlug ? dataset.slug : dataset.id}/raw`
   const fileExtension = dataset.originalFile.name.split('.').pop().toLowerCase()
@@ -281,7 +281,7 @@ const addDownloadLink = async (client: OneGeoClient, datasetId: number, dataset:
         }
       })
     } else {
-      await log.warning(`Format '${fileExtension}' non trouvé dans OneGeo, utilisation d'un lien générique`)
+      await log.warning(`Format '${fileExtension}' not found in OneGeo, using a generic link`)
       await client.request({
         method: 'POST',
         url: 'resource/href/',
@@ -302,12 +302,12 @@ const addDownloadLink = async (client: OneGeoClient, datasetId: number, dataset:
       }
     })
   } catch (error: any) {
-    await log.warning(`Impossible d'ajouter le lien de téléchargement : ${error.response?.data ? JSON.stringify(error.response.data) : error.message}`)
+    await log.warning(`Unable to add download link: ${error.response?.data ? JSON.stringify(error.response.data) : error.message}`)
   }
 }
 
 const addPageLink = async (client: OneGeoClient, datasetId: number, dataset: any, catalogConfig: any, publicationSite: any, log: any) => {
-  await log.info('Ajout du lien vers la page du jeu de données...')
+  await log.info('Adding link to the dataset page...')
   const exportUrl = microTemplate(publicationSite.datasetUrlTemplate || '', { id: dataset.id, slug: dataset.slug })
   const resourceSlug = dataset.id.replace(/[^a-zA-Z0-9_-]/g, '-').substring(0, 90) + '-page'
 
@@ -341,6 +341,6 @@ const addPageLink = async (client: OneGeoClient, datasetId: number, dataset: any
       }
     })
   } catch (error: any) {
-    await log.warning(`Impossible d'ajouter le lien de consultation : ${error.response?.data ? JSON.stringify(error.response.data) : error.message}`)
+    await log.warning(`Unable to add the view link: ${error.response?.data ? JSON.stringify(error.response.data) : error.message}`)
   }
 }
